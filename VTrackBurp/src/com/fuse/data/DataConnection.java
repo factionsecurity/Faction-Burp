@@ -1,4 +1,4 @@
-package org.vtrack.data;
+package com.fuse.data;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package org.vtrack.data;
+package com.fuse.data;
 
 import java.io.IOException;
 import java.net.URL;

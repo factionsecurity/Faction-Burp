@@ -1,4 +1,4 @@
-package org.vtrack.gui;
+package com.fuse.gui;
 
 import java.awt.Color;
 

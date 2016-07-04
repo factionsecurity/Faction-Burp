@@ -1,4 +1,4 @@
-package org.vtrack.gui;
+package com.fuse.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -34,25 +34,34 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
-import org.glassfish.jersey.client.ClientConfig;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+
+import com.fuse.api.FuseAPI;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.Vector;
 
 import javax.swing.JTextArea;
@@ -64,7 +73,7 @@ import java.awt.Font;
 import javax.swing.border.TitledBorder;
 import javax.swing.border.LineBorder;
 
-public class VTrackGUI extends JPanel {
+public class FactionGUI extends JPanel {
 
 	private JPanel contentPane;
 	private JTextField serverTxt;
@@ -76,28 +85,15 @@ public class VTrackGUI extends JPanel {
 	private JTextField asmtName;
 	private JEditorPane notesTxt;
 	private List<String> Notes = new ArrayList<String>();
+	private FuseAPI api = new FuseAPI();
 
-	/**
-	 * Launch the application.
-	 */
-	public static void main(String[] args) {
-		EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				try {
-					VTrackGUI frame = new VTrackGUI();
-					frame.setVisible(true);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		});
-	}
+
 
 	/**
 	 * Create the frame.
 	 */
-	public VTrackGUI() {
-		org.vtrack.data.Handler.install();
+	public FactionGUI() {
+		com.fuse.data.Handler.install();
 		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1099, 749);
 		//contentPane = new JPanel();
@@ -149,7 +145,7 @@ public class VTrackGUI extends JPanel {
 		        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
 		        	asmtName.setEditable(false);
 		        	notesTxt.setText(Notes.get(r));
-		        	JSONArray json = executeGet("http://127.0.0.1:8080/vtrack-os/api/assessments/history/" + appId);
+		        	JSONArray json = api.executeGet("/assessments/history/" + appId);
 		        	for(int i = 0; i<json.size(); i++){
 		        		JSONObject obj = (JSONObject) json.get(i);
 		        		Vector v = new Vector();
@@ -189,7 +185,9 @@ public class VTrackGUI extends JPanel {
 					
 				}
 				
-				JSONArray json = executeGet("http://127.0.0.1:8080/vtrack-os/api/assessments/queue");
+				JSONArray json = api.executeGet("/assessments/queue");
+				if(json == null)
+					return;
 				for(int i = 0 ; i< json.size(); i++){
 					JSONObject obj = (JSONObject)json.get(i);
 					Vector vect = new Vector();
@@ -363,7 +361,7 @@ public class VTrackGUI extends JPanel {
 		        	int r = vulnTable.getSelectedRow();
 		        	int row = vulnTable.convertRowIndexToModel(r);
 		        	Long vid = (Long)vulnModel.getValueAt(row, 6);
-		        	JSONArray json = executeGet("http://127.0.0.1:8080/vtrack-os/api/assessments/vuln/" + vid);
+		        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
 		        	JSONObject j = (JSONObject)json.get(0);
 		        	JSONArray s = (JSONArray)j.get("Steps");
 		        	List<String> Images = new ArrayList<String>();
@@ -374,9 +372,7 @@ public class VTrackGUI extends JPanel {
 		        		Images.add((String)jObj.get("ScreenShot"));
 		        		
 		        	}
-		        	
-		        	
-		        	
+
 		        	ExploitStepsPanel test = new ExploitStepsPanel((String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images);
 		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		        	test.setSize(900, 1000);
@@ -411,54 +407,22 @@ public class VTrackGUI extends JPanel {
 		tokenTxt.setColumns(10);
 		
 		JButton updateBtn = new JButton("Update");
+		updateBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				api.updateProps(serverTxt.getText(), tokenTxt.getText());
+				
+
+			}
+		});
 		updateBtn.setBounds(307, 130, 117, 25);
 		ConfigPanel.add(updateBtn);
+		
+		serverTxt.setText(api.getServer());
+		tokenTxt.setText(api.getToken());
+		
 	}
 	
-	public static JSONArray executeGet(String targetURL) {
-		  HttpURLConnection connection = null;  
-		  try {
-		    //Create connection
-		    URL url = new URL(targetURL);
-		    connection = (HttpURLConnection)url.openConnection();
-		    connection.setRequestMethod("GET");
-
-		    connection.setRequestProperty("VTRK-API-KEY", "7753583d-745e-4c87-bf1d-b15c290e25c7");
-		    connection.setRequestProperty("Content-Language", "en-US");  
-		    connection.setRequestProperty("Accept", "application/json");
-
-		    connection.connect();
-
-		    //Get Response  
-		    InputStream is = connection.getInputStream();
-		    BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-		    StringBuilder response = new StringBuilder(); // or StringBuffer if not Java 5+ 
-		    String line;
-		    while((line = rd.readLine()) != null) {
-		      response.append(line);
-		      response.append('\r');
-		    }
-		    rd.close();
-		    
-		    JSONParser parser = new JSONParser();
-			try {
-				JSONArray json = (JSONArray) parser.parse(response.toString());
-				
-				return json;
-			} catch (ParseException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-		    return null;
-		  } catch (Exception e) {
-		    e.printStackTrace();
-		    return null;
-		  } finally {
-		    if(connection != null) {
-		      connection.disconnect(); 
-		    }
-		  }
-		}
+	
 	public static String convertDate(String date){
 		SimpleDateFormat sdf1 = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy");
 		SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
@@ -473,4 +437,6 @@ public class VTrackGUI extends JPanel {
 		
 		
 	}
+	
+	
 }

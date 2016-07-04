@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/json-simple-1.1.1.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-client.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-common.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-container-servlet.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-container-servlet-core.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-media-jaxb.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/lib/jersey-server.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/MyCode/jaxrs-ri/api/javax.ws.rs-api-2.0.1.jar"/>
-	<classpathentry kind="lib" path="/home/ascetik/Tools/burpsuite_free_v1.6.30.jar"/>
-	<classpathentry kind="output" path="bin"/>
+	<classpathentry kind="src" output="target/classes" path="src">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Josh/Documents/Tools/burpsuite_free_v1.6.32.jar"/>
+	<classpathentry kind="output" path="target/classes"/>
 </classpath>
