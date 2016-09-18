@@ -68,7 +68,7 @@ public class FSUtils {
 	private static String createMessage(String Message, String Req, String Resp, boolean snipCookies){
 		String message = Message;
 		message = message.replace("\r\n", "<br />").replace("\n", "<br />");
-		if(Req!= null){
+		if(Req!= null && !Req.equals("")){
 			message += "<b>Request: </b>";
 			message += "<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
 			message += "<pre class='code'>";
@@ -91,7 +91,7 @@ public class FSUtils {
 			message += data;
 			message += "</pre></div>";
 		}
-		if(Resp != null){
+		if(Resp != null && !Resp.equals("")){
 			message += "<b>Response: </b>";
 			message += "<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
 			message += "<pre class='code'>";

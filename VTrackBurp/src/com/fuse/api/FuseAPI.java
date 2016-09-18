@@ -22,6 +22,7 @@ public class FuseAPI {
 	
 	private String SERVER ="";
 	private String TOKEN = "";
+	private Integer refresh;
 	public static String ADDVULN="/assessments/addVuln/";
 	public static String QUEUE="/assessments/queue";
 	public static String GETVULN="/assessments/vuln/";
@@ -41,12 +42,17 @@ public class FuseAPI {
 	public String getToken(){
 		return this.TOKEN;
 	}
-	public void updateProps(String Server, String Token){
+	public int getRefresh(){
+		return refresh;
+	}
+	public void updateProps(String Server, String Token, String Refresh){
 		this.SERVER = Server;
 		this.TOKEN = Token;
+		this.refresh = Integer.parseInt(Refresh);
 		Properties props = new Properties();
 		props.setProperty("server", Server);
 		props.setProperty("token", Token);
+		props.setProperty("refresh", Refresh);
 		File f = new File("faction.properties");
 		OutputStream out;
 		try {
@@ -67,10 +73,13 @@ public class FuseAPI {
 	 
 	    try {
 	        File f = new File("faction.properties");
+	        if(!f.exists())
+	        	f.createNewFile();
 	        is = new FileInputStream( f );
 	        props.load(is);
 	        this.SERVER = props.getProperty("server", "");
 	        this.TOKEN = props.getProperty("token","");
+	        this.refresh = Integer.parseInt(props.getProperty("refresh","20"));
 	        
 	    }
 	    catch ( Exception e ) { is = null; }

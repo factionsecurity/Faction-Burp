@@ -29,6 +29,7 @@ public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
 		callbacks.setExtensionName("FuseSoft Security FACTION");
 		callbacks.registerContextMenuFactory(this);
 		
+		
 		SwingUtilities.invokeLater(new Runnable() 
         {
 			

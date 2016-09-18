@@ -13,6 +13,7 @@ public class Handler extends URLStreamHandler {
     }
 
     public static void install() {
+    	System.out.println("installing protocol handler.");
         String pkgName = Handler.class.getPackage().getName();
         String pkg = pkgName.substring(0, pkgName.lastIndexOf('.'));
 
@@ -23,6 +24,7 @@ public class Handler extends URLStreamHandler {
             }
             protocolHandlers += pkg;
             System.setProperty("java.protocol.handler.pkgs", protocolHandlers);
+            System.out.println(protocolHandlers);
         }
     }
 }

@@ -23,6 +23,7 @@ import com.sun.jersey.impl.ApiMessages;
 import burp.IBurpExtenderCallbacks;
 import burp.IContextMenuInvocation;
 import burp.IHttpRequestResponse;
+import burp.IScanIssue;
 import flex.messaging.util.URLEncoder;
 
 import java.awt.FlowLayout;
@@ -42,6 +43,9 @@ import java.awt.Color;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.sql.Savepoint;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.awt.event.ActionEvent;
 import javax.swing.DefaultComboBoxModel;
 
@@ -61,7 +65,9 @@ public class SendToFaction {
 	private IContextMenuInvocation inv;
 	private JComboBox vulnList;
 	private JButton btnSave;
+	private boolean isScanIssue=false;
 	private boolean newVuln = true;
+	private HashMap<String,List<IScanIssue>>scanIssues;
 	
 	
 
@@ -73,6 +79,21 @@ public class SendToFaction {
 		this.cb = cb;
 		this.inv = inv;
 		this.newVuln=newVuln;
+		if(inv.CONTEXT_SCANNER_RESULTS == inv.getInvocationContext()){
+			this.isScanIssue = true;
+			IScanIssue scans [] = inv.getSelectedIssues();
+			scanIssues = new HashMap();
+			for(IScanIssue scan :scans){
+				if(scanIssues.containsKey(scan.getIssueName()))
+						scanIssues.get(scan.getIssueName()).add(scan);
+				else{
+					List<IScanIssue> newList = new ArrayList<IScanIssue>();
+					newList.add(scan);
+					scanIssues.put(scan.getIssueName(), newList);
+				}
+			}
+		}
+			
 		initialize();
 	}
 
@@ -302,50 +323,56 @@ public class SendToFaction {
 		message = message.replace("\r\n", "<br>").replace("\n", "<br>");
 		message +="<br>";
 		if(this.optReq.isSelected()){
-			message +="";
-			message += "<b>Request: </b>";
-			message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-			message += "<pre class='code'>";
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
 			String tmp = new String(req.getRequest());
-			if(this.optCookies.isSelected()){
-				int start = tmp.indexOf("Cookie: ");
-				if(start != -1){
-					start = start +  "Cookie: ".length();
-					int end = tmp.indexOf("\n", start);
-					String begin = tmp.substring(0,start);
-					String finish = tmp.substring(end);
-					tmp = begin + "[ ...snip... ]" + finish;
-				}
-			}
+			if(tmp!= null && !tmp.trim().equals("")){
+				message +="";
+				message += "<b>Request: </b>";
+				message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
+				message += "<pre class='code'>";
 				
-			String data = StringEscapeUtils.escapeHtml(tmp);
-			
-			data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-			message += data;
-			message += "</pre></div>";
+				if(this.optCookies.isSelected()){
+					int start = tmp.indexOf("Cookie: ");
+					if(start != -1){
+						start = start +  "Cookie: ".length();
+						int end = tmp.indexOf("\n", start);
+						String begin = tmp.substring(0,start);
+						String finish = tmp.substring(end);
+						tmp = begin + "[ ...snip... ]" + finish;
+					}
+				}
+					
+				String data = StringEscapeUtils.escapeHtml(tmp);
+				
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+				message += data;
+				message += "</pre></div>";
+			}
 		}
 		if(this.optResp.isSelected()){
-			message +="";
-			message += "<b>Response: </b>";
-			message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-			message += "<pre class='code'>";
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
 			String tmp = new String(req.getResponse());
-			if(this.optCookies.isSelected()){
-				int start = tmp.indexOf("Set-Cookie: ");
-				if(start != -1){
-					start = start + "Set-Cookie: ".length();
-					int end = tmp.indexOf("\n", start);
-					String begin = tmp.substring(0,start);
-					String finish = tmp.substring(end);
-					tmp = begin + "[ ...snip... ]" + finish;
+			if(tmp!= null && !tmp.trim().equals("")){
+				message +="";
+				message += "<b>Response: </b>";
+				message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
+				message += "<pre class='code'>";
+				
+				if(this.optCookies.isSelected()){
+					int start = tmp.indexOf("Set-Cookie: ");
+					if(start != -1){
+						start = start + "Set-Cookie: ".length();
+						int end = tmp.indexOf("\n", start);
+						String begin = tmp.substring(0,start);
+						String finish = tmp.substring(end);
+						tmp = begin + "[ ...snip... ]" + finish;
+					}
 				}
+				
+				String data = StringEscapeUtils.escapeHtml(tmp);
+				message += data;
+				message += "</pre></div>";
 			}
-			
-			String data = StringEscapeUtils.escapeHtml(tmp);
-			message += data;
-			message += "</pre></div>";
 			
 		}
 		return message;

@@ -62,6 +62,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 import javax.swing.JTextArea;
@@ -72,12 +74,13 @@ import java.awt.Font;
 
 import javax.swing.border.TitledBorder;
 import javax.swing.border.LineBorder;
+import javax.swing.JPasswordField;
 
-public class FactionGUI extends JPanel {
+public class FactionGUI extends JPanel  {
 
 	private JPanel contentPane;
 	private JTextField serverTxt;
-	private JTextField tokenTxt;
+	private JPasswordField tokenTxt;
 	private JTable queueTable;
 	private VTTableModel asmtModel;
 	private VTTableModel vulnModel;
@@ -86,6 +89,8 @@ public class FactionGUI extends JPanel {
 	private JEditorPane notesTxt;
 	private List<String> Notes = new ArrayList<String>();
 	private FuseAPI api = new FuseAPI();
+	private JTextField refreshRate;
+	private Timer refreshTimer;
 
 
 
@@ -93,7 +98,7 @@ public class FactionGUI extends JPanel {
 	 * Create the frame.
 	 */
 	public FactionGUI() {
-		com.fuse.data.Handler.install();
+		//com.fuse.data.Handler.install();
 		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1099, 749);
 		//contentPane = new JPanel();
@@ -178,31 +183,8 @@ public class FactionGUI extends JPanel {
 		JButton btnNewButton = new JButton("Update");
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+				updateAPI();
 
-				Notes.clear();
-				for(int i = asmtModel.getRowCount()-1; i >=0; i--){
-					asmtModel.removeRow(i);
-					
-				}
-				
-				JSONArray json = api.executeGet("/assessments/queue");
-				if(json == null)
-					return;
-				for(int i = 0 ; i< json.size(); i++){
-					JSONObject obj = (JSONObject)json.get(i);
-					Vector vect = new Vector();
-					vect.add(obj.get("AppId"));
-					vect.add(obj.get("Name"));
-					vect.add(convertDate((String)obj.get("Start")));
-					vect.add(convertDate((String)obj.get("End")));
-					asmtModel.addRow(vect);
-					Notes.add((String)obj.get("AccessNotes") + "<hr><hr>" + (String)obj.get("Notes"));
-					
-				}
-				
-				
-					
-				
 			}
 		});
 		panel.add(btnNewButton);
@@ -331,18 +313,19 @@ public class FactionGUI extends JPanel {
 		    @Override
 		    public Component getTableCellRendererComponent(JTable table,
 		            Object value, boolean isSelected, boolean hasFocus, int row, int col) {
-
+		    	
 		        super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+		        int realRow = table.convertRowIndexToModel(row);
 		        
-		        String status = "" + table.getModel().getValueAt(row, col);
+		        String status = "" + table.getModel().getValueAt(realRow, col);
 		        if ("Critical".equals(status)) {
-		            setBackground(Color.RED);
+		            setBackground(new Color(231, 76, 60));
 		            setForeground(Color.WHITE);
 		        } else if ("High".equals(status)) {
-		            setBackground(Color.ORANGE);
+		            setBackground(new Color(230, 126, 34));
 		            setForeground(Color.WHITE);
-		        } else if ("Low".equals(status)) {
-		            setBackground(Color.BLUE);
+		        } else if ("Medium".equals(status)) {
+		            setBackground(new Color(52, 152, 219));
 		            setForeground(Color.WHITE);
 		        } else {
 		        	if(row%2==0){
@@ -366,14 +349,18 @@ public class FactionGUI extends JPanel {
 		        	JSONArray s = (JSONArray)j.get("Steps");
 		        	List<String> Images = new ArrayList<String>();
 		        	List<String> Steps = new ArrayList<String>();
+		        	List<Integer>ImageIds = new ArrayList<Integer>();
 		        	for(int i=0; i< s.size(); i++){
 		        		JSONObject jObj = (JSONObject)s.get(i);
 		        		Steps.add((String)jObj.get("Description"));
 		        		Images.add((String)jObj.get("ScreenShot"));
+		        		if(jObj.get("ImageId")!= null)
+		        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
+		        		
 		        		
 		        	}
-
-		        	ExploitStepsPanel test = new ExploitStepsPanel((String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images);
+		        	//com.fuse.data.Handler.install();
+		        	ExploitStepsPanel test = new ExploitStepsPanel((String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds);
 		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		        	test.setSize(900, 1000);
 		        	test.setVisible(true);
@@ -401,7 +388,7 @@ public class FactionGUI extends JPanel {
 		ConfigPanel.add(serverTxt);
 		serverTxt.setColumns(10);
 		
-		tokenTxt = new JTextField();
+		tokenTxt = new JPasswordField();
 		tokenTxt.setBounds(88, 91, 336, 27);
 		ConfigPanel.add(tokenTxt);
 		tokenTxt.setColumns(10);
@@ -409,16 +396,80 @@ public class FactionGUI extends JPanel {
 		JButton updateBtn = new JButton("Update");
 		updateBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				api.updateProps(serverTxt.getText(), tokenTxt.getText());
+				api.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
+				refreshTimer.cancel();
+				refreshTimer.scheduleAtFixedRate(new TimerTask(){
+
+					@Override
+					public void run() {
+						updateAPI();
+						
+					}}, 0, 1000 * api.getRefresh());
 				
 
 			}
 		});
-		updateBtn.setBounds(307, 130, 117, 25);
+		updateBtn.setBounds(305, 129, 117, 25);
 		ConfigPanel.add(updateBtn);
 		
 		serverTxt.setText(api.getServer());
 		tokenTxt.setText(api.getToken());
+		
+		
+		JLabel lblRefresh = new JLabel("Refresh:");
+		lblRefresh.setBounds(32, 134, 46, 25);
+		ConfigPanel.add(lblRefresh);
+		
+		refreshRate = new JTextField();
+		refreshRate.setText("20");
+		refreshRate.setBounds(88, 129, 46, 25);
+		ConfigPanel.add(refreshRate);
+		refreshRate.setColumns(10);
+		refreshRate.setText("" + api.getRefresh());
+		
+		JLabel lblSecs = new JLabel("Seconds");
+		lblSecs.setBounds(144, 134, 100, 20);
+		ConfigPanel.add(lblSecs);
+		
+		
+		refreshTimer = new Timer();
+		refreshTimer.scheduleAtFixedRate(new TimerTask(){
+
+			@Override
+			public void run() {
+				updateAPI();
+				
+			}}, 0, 1000 * api.getRefresh());
+		
+		
+	}
+	
+	private void updateAPI(){
+		
+		
+		JSONArray json = api.executeGet(FuseAPI.QUEUE);
+		if(json == null)
+			return;
+		if(asmtModel.getRowCount() != json.size()){
+			Notes.clear();
+			for(int i = asmtModel.getRowCount()-1; i >=0; i--){
+				asmtModel.removeRow(i);
+				
+			}
+			
+		
+			for(int i = 0 ; i< json.size(); i++){
+				JSONObject obj = (JSONObject)json.get(i);
+				Vector vect = new Vector();
+				vect.add(obj.get("AppId"));
+				vect.add(obj.get("Name"));
+				vect.add(convertDate((String)obj.get("Start")));
+				vect.add(convertDate((String)obj.get("End")));
+				asmtModel.addRow(vect);
+				Notes.add((String)obj.get("AccessNotes") + "<hr>" + (String)obj.get("Notes"));
+				
+			}
+		}
 		
 	}
 	
@@ -437,6 +488,4 @@ public class FactionGUI extends JPanel {
 		
 		
 	}
-	
-	
 }

@@ -20,6 +20,7 @@ public class DataConnection extends URLConnection {
 
     @Override
     public InputStream getInputStream() throws IOException {
+    	System.out.println("data stream");
         String data = url.toString();
         data = data.replaceFirst("^.*;base64,", "");
         System.out.println("Data: " + data);
