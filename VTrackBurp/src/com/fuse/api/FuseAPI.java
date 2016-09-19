@@ -189,6 +189,8 @@ public class FuseAPI {
 	public static int setSeverity(String severity){
 		if(severity.equals("Informational"))
 			return 0;
+		else if(severity.equals("Information"))
+			return 0;
 		else if(severity.equals("Recommended"))
 			return 1;
 		else if(severity.equals("Low"))

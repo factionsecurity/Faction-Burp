@@ -127,6 +127,13 @@ public class SendToFaction {
 			frame.getContentPane().add(lblName, gbc_lblName);
 			
 			vulnName = new JTextField();
+			if(inv.getSelectedIssues() != null){
+				if(inv.getSelectedIssues().length == 1)
+					vulnName.setText(inv.getSelectedIssues()[0].getIssueName());
+				else
+					vulnName.setText("Multiple Issues Selected");
+				
+			}
 			GridBagConstraints gbc_vulnName = new GridBagConstraints();
 			gbc_vulnName.fill = GridBagConstraints.HORIZONTAL;
 			gbc_vulnName.insets = new Insets(0, 0, 5, 5);
@@ -151,6 +158,7 @@ public class SendToFaction {
 					int index = assessmentList.getSelectedIndex();
 					JSONObject obj = (JSONObject)asmts.get(index);
 					vulns = api.executeGet(FuseAPI.GETVULNS + obj.get("Id"));
+					vulnList.removeAllItems();
 					for(int i=0; i< vulns.size(); i++){
 						JSONObject vuln = (JSONObject)vulns.get(i);
 						vulnList.addItem("" + vuln.get("Name"));
@@ -212,9 +220,9 @@ public class SendToFaction {
 		optReq.setSelected(true);
 		
 		optCookies = new JCheckBox("Snip Cookies");
-		optCookies.setSelected(true);
 		
 		optResp = new JCheckBox("Response");
+		optResp.setSelected(true);
 		
 		optFeed = new JCheckBox("Show on Feed");
 		panel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
@@ -267,19 +275,38 @@ public class SendToFaction {
 		btnSave.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				String msg = message_1.getText();
-				String b64 = new String(Base64.encode(createMessage()));
+				
 				if(newVuln){
-					String name = vulnName.getText();
-					int index = assessmentList.getSelectedIndex();
-					JSONObject obj = (JSONObject)asmts.get(index);
-					String feed="false";
-					if(optFeed.isSelected())
-						feed = "true";
-					String postData = "name="+ URLEncoder.encode(name) + "&feed=" + feed + "&message=" +URLEncoder.encode(b64);
-					postData+="&severity=" + FuseAPI.setSeverity(""+severity.getSelectedItem());
-					api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+					if(inv.getSelectedIssues() !=null){ // we are using scan issues
+						
+						for(int scanIndex = 0; scanIndex < inv.getSelectedIssues().length; scanIndex++){
+							IScanIssue issue = inv.getSelectedIssues()[scanIndex];
+							String name = issue.getIssueName();
+							int index = assessmentList.getSelectedIndex();
+							JSONObject obj = (JSONObject)asmts.get(index);
+							String feed="false";
+							if(optFeed.isSelected())
+								feed = "true";
+							String b64 = new String(Base64.encode(createScanMessage(scanIndex)));
+							String postData = "name="+ URLEncoder.encode(name) + "&feed=" + feed + "&message=" +URLEncoder.encode(b64);
+							postData+="&severity=" + FuseAPI.setSeverity(""+inv.getSelectedIssues()[scanIndex].getSeverity());
+							api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+							
+						}
+					}else{
+						String b64 = new String(Base64.encode(createMessage()));
+						String name = vulnName.getText();
+						int index = assessmentList.getSelectedIndex();
+						JSONObject obj = (JSONObject)asmts.get(index);
+						String feed="false";
+						if(optFeed.isSelected())
+							feed = "true";
+						String postData = "name="+ URLEncoder.encode(name) + "&feed=" + feed + "&message=" +URLEncoder.encode(b64);
+						postData+="&severity=" + FuseAPI.setSeverity(""+severity.getSelectedItem());
+						api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+					}
 				}else{
-					
+					String b64 = new String(Base64.encode(createMessage()));
 					int aindex = assessmentList.getSelectedIndex();
 					int vindex  = vulnList.getSelectedIndex();
 					JSONObject aObj = (JSONObject)asmts.get(aindex);
@@ -315,6 +342,72 @@ public class SendToFaction {
 			JSONObject obj = (JSONObject)asmts.get(i);
 			assessmentList.addItem(obj.get("AppId") + " " + obj.get("Name"));
 		}
+		
+		
+	}
+	
+	private String createScanMessage(int scanIndex){
+		String message = this.getMessage().getText();
+		message = message.replace("\r\n", "<br>").replace("\n", "<br>");
+		message +="<br>";
+		String issueDetail = inv.getSelectedIssues()[scanIndex].getIssueDetail();
+		if(issueDetail != null)
+			message += issueDetail;
+		
+		for( IHttpRequestResponse reqres : inv.getSelectedIssues()[scanIndex].getHttpMessages()){
+			message +="";
+			
+			if(this.optReq.isSelected()){
+				String req = new String(reqres.getRequest());
+			    if(req != null && !req.trim().equals("")){
+			    	message += "<br>";
+					message += "<b>Request: </b>";
+					message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
+					message += "<pre class='code'>";
+					if(this.optCookies.isSelected()){
+						int start = req.indexOf("Cookie: ");
+						if(start != -1){
+							start = start +  "Cookie: ".length();
+							int end = req.indexOf("\n", start);
+							String begin = req.substring(0,start);
+							String finish = req.substring(end);
+							req = begin + "[ ...snip... ]" + finish;
+						}
+					}
+					String data = StringEscapeUtils.escapeHtml(req);
+					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+					message += data;
+					message += "</pre></div>";
+			    }
+			}
+			
+			if(this.optResp.isSelected()){
+				String resp = new String(reqres.getResponse());
+				if(resp != null && !resp.trim().equals("")){
+					message +="<br>";
+					message += "<b>Response: </b>";
+					message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
+					message += "<pre class='code'>";
+					if(this.optCookies.isSelected()){
+						int start = resp.indexOf("Set-Cookie: ");
+						if(start != -1){
+							start = start + "Set-Cookie: ".length();
+							int end = resp.indexOf("\n", start);
+							String begin = resp.substring(0,start);
+							String finish = resp.substring(end);
+							resp = begin + "[ ...snip... ]" + finish;
+						}
+					}
+					String data = StringEscapeUtils.escapeHtml(resp);
+					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+					message += data;
+					message += "</pre></div>";
+				}
+			}
+				
+			
+		}
+		return message;
 		
 		
 	}
@@ -370,6 +463,7 @@ public class SendToFaction {
 				}
 				
 				String data = StringEscapeUtils.escapeHtml(tmp);
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 				message += data;
 				message += "</pre></div>";
 			}
