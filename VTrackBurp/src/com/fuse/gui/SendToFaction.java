@@ -358,8 +358,9 @@ public class SendToFaction {
 			message +="";
 			
 			if(this.optReq.isSelected()){
-				String req = new String(reqres.getRequest());
-			    if(req != null && !req.trim().equals("")){
+				
+				if(reqres.getRequest() != null && !(new String(reqres.getRequest()).trim().equals(""))){
+					String req = new String(reqres.getRequest());
 			    	message += "<br>";
 					message += "<b>Request: </b>";
 					message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
@@ -382,8 +383,8 @@ public class SendToFaction {
 			}
 			
 			if(this.optResp.isSelected()){
-				String resp = new String(reqres.getResponse());
-				if(resp != null && !resp.trim().equals("")){
+				if(reqres.getResponse() != null && !(new String(reqres.getResponse()).trim().equals(""))){
+					String resp = new String(reqres.getResponse());
 					message +="<br>";
 					message += "<b>Response: </b>";
 					message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
@@ -417,8 +418,9 @@ public class SendToFaction {
 		message +="<br>";
 		if(this.optReq.isSelected()){
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
-			String tmp = new String(req.getRequest());
-			if(tmp!= null && !tmp.trim().equals("")){
+			
+			if(req.getRequest() != null && !(new String(req.getRequest()).trim().equals(""))){
+				String tmp = new String(req.getRequest());
 				message +="";
 				message += "<b>Request: </b>";
 				message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
@@ -444,8 +446,10 @@ public class SendToFaction {
 		}
 		if(this.optResp.isSelected()){
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
-			String tmp = new String(req.getResponse());
-			if(tmp!= null && !tmp.trim().equals("")){
+
+			
+			if(req.getResponse() != null && !(new String(req.getResponse()).trim().equals(""))){
+				String tmp = new String(req.getResponse());
 				message +="";
 				message += "<b>Response: </b>";
 				message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
