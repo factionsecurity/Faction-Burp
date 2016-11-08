@@ -14,10 +14,12 @@ public class ActionJackson implements ActionListener{
 	private IBurpExtenderCallbacks cb;
 	private IContextMenuInvocation inv;
 	private boolean newVuln;
-	public ActionJackson(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln){
+	private Long APPID;
+	public ActionJackson(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, Long appid){
 		this.cb = cb;
 		this.inv = inv;
 		this.newVuln = newVuln;
+		this.APPID = appid;
 		
 	}
 	@Override
@@ -25,7 +27,7 @@ public class ActionJackson implements ActionListener{
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					SendToFaction window = new SendToFaction(cb, inv, newVuln);
+					SendToFaction window = new SendToFaction(cb, inv, newVuln, APPID);
 					window.frame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();

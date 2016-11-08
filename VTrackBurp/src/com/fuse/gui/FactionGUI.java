@@ -27,6 +27,7 @@ import java.awt.GridBagConstraints;
 import javax.swing.JScrollPane;
 
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.FlowLayout;
 
 import javax.swing.SwingConstants;
@@ -91,6 +92,7 @@ public class FactionGUI extends JPanel  {
 	private FuseAPI api = new FuseAPI();
 	private JTextField refreshRate;
 	private Timer refreshTimer;
+	private Long appId = -1l;
 
 
 
@@ -146,10 +148,11 @@ public class FactionGUI extends JPanel  {
 						vulnModel.removeRow(i);
 						
 					}
-		        	Long appId = (Long)asmtModel.getValueAt(row, 0);
+		        	appId = Long.parseLong(""+asmtModel.getValueAt(row, 0));
 		        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
 		        	asmtName.setEditable(false);
-		        	notesTxt.setText(Notes.get(r));
+		        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
+		        	notesTxt.setText(NotesStr);
 		        	JSONArray json = api.executeGet("/assessments/history/" + appId);
 		        	for(int i = 0; i<json.size(); i++){
 		        		JSONObject obj = (JSONObject) json.get(i);
@@ -397,9 +400,10 @@ public class FactionGUI extends JPanel  {
 		updateBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				api.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
+				try{
 				refreshTimer.cancel();
+				}catch(Exception ex){}
 				refreshTimer.scheduleAtFixedRate(new TimerTask(){
-
 					@Override
 					public void run() {
 						updateAPI();
@@ -450,6 +454,9 @@ public class FactionGUI extends JPanel  {
 		JSONArray json = api.executeGet(FuseAPI.QUEUE);
 		if(json == null)
 			return;
+		/*
+		 * Update Assessment information.
+		 */
 		if(asmtModel.getRowCount() != json.size()){
 			Notes.clear();
 			for(int i = asmtModel.getRowCount()-1; i >=0; i--){
@@ -457,7 +464,7 @@ public class FactionGUI extends JPanel  {
 				
 			}
 			
-		
+			
 			for(int i = 0 ; i< json.size(); i++){
 				JSONObject obj = (JSONObject)json.get(i);
 				Vector vect = new Vector();
@@ -469,6 +476,37 @@ public class FactionGUI extends JPanel  {
 				Notes.add((String)obj.get("AccessNotes") + "<hr>" + (String)obj.get("Notes"));
 				
 			}
+		}
+		/*
+		 * Add Only new findings to the table if an application is selected.
+		 */
+		if(appId != -1l){
+			JSONArray vulns = api.executeGet("/assessments/history/" + appId);
+        	for(int i = 0; i<vulns.size(); i++){
+        		JSONObject obj = (JSONObject) vulns.get(i);
+        		Vector v = new Vector();
+        		v.add(obj.get("Name"));
+        		v.add(obj.get("OverallStr"));
+        		v.add(obj.get("ImpactStr"));
+        		v.add(obj.get("LikelyhoodStr"));
+        		v.add(obj.get("Opened"));
+        		v.add(obj.get("Closed"));
+        		v.add(obj.get("Id"));
+        		boolean found=false;
+        		
+        		for(int j =0; j<vulnModel.getRowCount(); j++){
+        			//System.out.println(vulnModel.getValueAt(j, 6) + " , " + v.get(6));
+        			if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
+        				found = true;
+        				break;
+        			}
+        		}
+        		
+        		if(!found){
+        			vulnModel.insertRow(0, v);
+        			
+        		}
+        	}
 		}
 		
 	}
@@ -487,5 +525,9 @@ public class FactionGUI extends JPanel  {
 		return null;
 		
 		
+	}
+	
+	public Long getAppId(){
+		return this.appId;
 	}
 }

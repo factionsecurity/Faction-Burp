@@ -24,11 +24,14 @@ public class FuseAPI {
 	private String TOKEN = "";
 	private Integer refresh;
 	public static String ADDVULN="/assessments/addVuln/";
+	public static String ADDDEFAULTVULN="/assessments/addDefaultVuln/";
+	public static String SEARCH_DEFAULT_VULN="/vulnerabilities/default/";
 	public static String QUEUE="/assessments/queue";
 	public static String GETVULN="/assessments/vuln/";
 	public static String GETVULNS="/assessments/vulns/";
 	public static String SETNOTE="/assessments/notes/";
 	public static String HISTORY="/assessments/history/";
+	public static String LEVELS="/vulnerabilities/getrisklevels/";
 	
 	
 	
@@ -186,7 +189,8 @@ public class FuseAPI {
 		  }
 		}
 	
-	public static int setSeverity(String severity){
+	public static int setSeverity2(String severity){
+		
 		if(severity.equals("Informational"))
 			return 0;
 		else if(severity.equals("Information"))

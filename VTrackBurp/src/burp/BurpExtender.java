@@ -28,6 +28,7 @@ public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
 		this.cb = callbacks;
 		callbacks.setExtensionName("FuseSoft Security FACTION");
 		callbacks.registerContextMenuFactory(this);
+		//System.out.println("Class : " + this.getUiComponent().getClass().getName());
 		
 		
 		SwingUtilities.invokeLater(new Runnable() 
@@ -63,17 +64,17 @@ public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
 		List<JMenuItem> menus = new ArrayList<JMenuItem>();
 		if(isMessageEditor(inv)){
 			JMenuItem newVuln = new JMenuItem("Add as New Finding");
-			newVuln.addActionListener(new ActionJackson(cb, inv, true));
+			newVuln.addActionListener(new ActionJackson(cb, inv, true, factionUI.getAppId()));
 			
 			JMenuItem addExisting = new JMenuItem("Add to Existing Finding");
-			addExisting.addActionListener(new ActionJackson(cb, inv, false));
+			addExisting.addActionListener(new ActionJackson(cb, inv, false, factionUI.getAppId()));
 			faction.add(newVuln);
 			faction.add(addExisting);
 			
 			menus.add(faction);
 		}else if(isScanItems(inv)){
 			JMenuItem newScans = new JMenuItem("Send as New Scan Items");
-			newScans.addActionListener(new ActionJackson(cb, inv, true));
+			newScans.addActionListener(new ActionJackson(cb, inv, true, factionUI.getAppId()));
 			faction.add(newScans);
 			menus.add(faction);
 		}
