@@ -42,6 +42,9 @@ import org.json.simple.parser.ParseException;
 
 import com.fuse.api.FuseAPI;
 
+import burp.IBurpExtenderCallbacks;
+import burp.cb;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -57,6 +60,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -68,6 +72,13 @@ import java.util.TimerTask;
 import java.util.Vector;
 
 import javax.swing.JTextArea;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.Box;
 
 import java.awt.Dimension;
@@ -76,6 +87,7 @@ import java.awt.Font;
 import javax.swing.border.TitledBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.JPasswordField;
+import javax.swing.JSplitPane;
 
 public class FactionGUI extends JPanel  {
 
@@ -88,6 +100,7 @@ public class FactionGUI extends JPanel  {
 	private JTable vulnTable;
 	private JTextField asmtName;
 	private JEditorPane notesTxt;
+	private JEditorPane notes2Txt;
 	private List<String> Notes = new ArrayList<String>();
 	private FuseAPI api = new FuseAPI();
 	private JTextField refreshRate;
@@ -99,7 +112,7 @@ public class FactionGUI extends JPanel  {
 	/**
 	 * Create the frame.
 	 */
-	public FactionGUI() {
+	public FactionGUI(IBurpExtenderCallbacks cb) {
 		//com.fuse.data.Handler.install();
 		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1099, 749);
@@ -152,7 +165,9 @@ public class FactionGUI extends JPanel  {
 		        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
 		        	asmtName.setEditable(false);
 		        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
-		        	notesTxt.setText(NotesStr);
+		        	String [] notes = NotesStr.split("<!--Split-->");
+		        	notesTxt.setText(notes[0]);
+		        	notes2Txt.setText(notes[1]);
 		        	JSONArray json = api.executeGet("/assessments/history/" + appId);
 		        	for(int i = 0; i<json.size(); i++){
 		        		JSONObject obj = (JSONObject) json.get(i);
@@ -270,7 +285,7 @@ public class FactionGUI extends JPanel  {
 		panel_1.add(rigidArea_1, gbc_rigidArea_1);
 		
 		JPanel panel_2 = new JPanel();
-		panel_2.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Assessment Notes/Credentials", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
+		panel_2.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Assessment Scope/Assessment Notes", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
 		GridBagConstraints gbc_panel_2 = new GridBagConstraints();
 		gbc_panel_2.fill = GridBagConstraints.BOTH;
 		gbc_panel_2.insets = new Insets(0, 0, 5, 0);
@@ -284,14 +299,23 @@ public class FactionGUI extends JPanel  {
 		gbl_panel_2.rowWeights = new double[]{1.0, Double.MIN_VALUE};
 		panel_2.setLayout(gbl_panel_2);
 		
+		JSplitPane splitPane = new JSplitPane();
+		splitPane.setResizeWeight(0.5);
+		splitPane.setOneTouchExpandable(true);
+		GridBagConstraints gbc_splitPane = new GridBagConstraints();
+		gbc_splitPane.fill = GridBagConstraints.BOTH;
+		gbc_splitPane.gridx = 0;
+		gbc_splitPane.gridy = 0;
+		panel_2.add(splitPane, gbc_splitPane);
+		
 		notesTxt = new JEditorPane();
-		GridBagConstraints gbc_notesTxt = new GridBagConstraints();
-		gbc_notesTxt.fill = GridBagConstraints.BOTH;
-		gbc_notesTxt.gridx = 0;
-		gbc_notesTxt.gridy = 0;
-		panel_2.add(notesTxt, gbc_notesTxt);
+		splitPane.setLeftComponent(notesTxt);
 		notesTxt.setEditable(false);
 		notesTxt.setContentType("text/html");
+		
+		notes2Txt = new JEditorPane();
+		notes2Txt.setContentType("text/html");
+		splitPane.setRightComponent(notes2Txt);
 		
 		Component rigidArea_5 = Box.createRigidArea(new Dimension(20, 20));
 		GridBagConstraints gbc_rigidArea_5 = new GridBagConstraints();
@@ -304,6 +328,7 @@ public class FactionGUI extends JPanel  {
 		
 		vulnTable = new JTable();
 		String vcolnames[] = { "Name", "Severity", "Impact", "LikelyHood", "Opened", "Closed", "vid" };
+		
 		vulnModel = new VTTableModel(vcolnames);
 		vulnTable.setAutoCreateRowSorter(true);
 		vulnTable.setModel(vulnModel);
@@ -311,6 +336,14 @@ public class FactionGUI extends JPanel  {
 		vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");
 		vulnModel.addRow(vect);
 		vulnTable.getRowSorter().toggleSortOrder(4);
+		vulnTable.getColumnModel().getColumn(1).setMaxWidth(100);
+		vulnTable.getColumnModel().getColumn(2).setMaxWidth(100);
+		vulnTable.getColumnModel().getColumn(3).setMaxWidth(100);
+		vulnTable.getColumnModel().getColumn(4).setMaxWidth(250);
+		vulnTable.getColumnModel().getColumn(4).setPreferredWidth(250);
+		vulnTable.getColumnModel().getColumn(5).setPreferredWidth(250);
+		vulnTable.getColumnModel().getColumn(5).setMaxWidth(250);
+		vulnTable.getColumnModel().getColumn(6).setMaxWidth(50);
 		
 		vulnTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer(){
 		    @Override
@@ -363,7 +396,7 @@ public class FactionGUI extends JPanel  {
 		        		
 		        	}
 		        	//com.fuse.data.Handler.install();
-		        	ExploitStepsPanel test = new ExploitStepsPanel((String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds);
+		        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
 		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		        	test.setSize(900, 1000);
 		        	test.setVisible(true);
@@ -403,6 +436,7 @@ public class FactionGUI extends JPanel  {
 				try{
 				refreshTimer.cancel();
 				}catch(Exception ex){}
+				refreshTimer = new Timer();
 				refreshTimer.scheduleAtFixedRate(new TimerTask(){
 					@Override
 					public void run() {
@@ -473,7 +507,9 @@ public class FactionGUI extends JPanel  {
 				vect.add(convertDate((String)obj.get("Start")));
 				vect.add(convertDate((String)obj.get("End")));
 				asmtModel.addRow(vect);
-				Notes.add((String)obj.get("AccessNotes") + "<hr>" + (String)obj.get("Notes"));
+				String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
+				String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
+				Notes.add(creds + "<!--Split-->" + notes);
 				
 			}
 		}
@@ -503,10 +539,33 @@ public class FactionGUI extends JPanel  {
         		}
         		
         		if(!found){
-        			vulnModel.insertRow(0, v);
         			
+					//InputStream is= this.getClass().getResourceAsStream("/com/fuse/gui/newvuln.wav");
+					//playSoundInternal(is);
+        			
+        			vulnModel.insertRow(0, v);
+   
         		}
         	}
+        	//remove vulns no longer in table
+        	for(int j =vulnModel.getRowCount()-1; j>=0; j--){
+        		boolean found = false;
+        		for(int i = 0; i<vulns.size(); i++){
+            		JSONObject obj = (JSONObject) vulns.get(i);
+            		
+            		if((""+vulnModel.getValueAt(j, 6)).equals(""+obj.get("Id"))){
+            			
+            			found = true;
+        				break;
+            		}
+        		}
+    			if(!found){
+    				//InputStream is=this.getClass().getResourceAsStream("/com/fuse/gui/delvuln.wav");
+					//playSoundInternal(is);
+    				vulnModel.removeRow(j);
+    				
+    			}
+    		}
 		}
 		
 	}
@@ -530,4 +589,65 @@ public class FactionGUI extends JPanel  {
 	public Long getAppId(){
 		return this.appId;
 	}
+	private void playSoundInternal(InputStream f) {
+	    try {
+	    	
+	        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(f);
+	        try {
+	            Clip clip = AudioSystem.getClip();
+	            clip.open(audioInputStream);
+	            try {
+	                clip.start();
+	                try {
+	                    Thread.sleep(100);
+	                } catch (InterruptedException e) {
+	                    e.printStackTrace();
+	                }
+	                clip.drain();
+	            } finally {
+	                clip.close();
+	            }
+	        } catch (LineUnavailableException e) {
+	            e.printStackTrace();
+	        } finally {
+	            audioInputStream.close();
+	        }
+	    } catch (UnsupportedAudioFileException e) {
+	        e.printStackTrace();
+	    } catch (FileNotFoundException e) {
+	        e.printStackTrace();
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	}
+	
+	 public static void tone(float hz, int msecs, double vol){
+		 try {
+		    byte[] buf = new byte[1];
+		    AudioFormat af = 
+		        new AudioFormat(
+		        	8000f, // sampleRate
+		            8,           // sampleSizeInBits
+		            1,           // channels
+		            true,        // signed
+		            false);      // bigEndian
+		    SourceDataLine sdl;
+			
+			sdl = AudioSystem.getSourceDataLine(af);
+			
+		    sdl.open(af);
+		    sdl.start();
+		    for (int i=0; i < msecs*8; i++) {
+		      double angle = i / (8000f / hz) * 2.0 * Math.PI;
+		      buf[0] = (byte)(Math.sin(angle) * 127.0 * vol);
+		      sdl.write(buf,0,1);
+		    }
+		    sdl.drain();
+		    sdl.stop();
+		    sdl.close();
+			} catch (LineUnavailableException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		  }
 }

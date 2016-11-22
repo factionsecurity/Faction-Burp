@@ -545,7 +545,7 @@ public class SendToFaction {
 	
 	private String createScanMessage(int scanIndex){
 		String message = this.getMessage().getText();
-		message = message.replace("\r\n", "<br/>").replace("\n", "<br/>");
+		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
 		message +="<br/>";
 		String issueDetail = inv.getSelectedIssues()[scanIndex].getIssueDetail();
 		if(issueDetail != null)
@@ -573,7 +573,7 @@ public class SendToFaction {
 						}
 					}
 					String data = StringEscapeUtils.escapeHtml(req);
-					data = data.replaceAll("\r", "").replace("\n", "<br/>");
+					data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 					message += data;
 					message += "</pre>";
@@ -599,7 +599,7 @@ public class SendToFaction {
 						}
 					}
 					String data = StringEscapeUtils.escapeHtml(resp);
-					data = data.replaceAll("\r", "").replace("\n", "<br/>");
+					data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 					message += data;
 					message += "</pre>";
@@ -615,7 +615,7 @@ public class SendToFaction {
 	}
 	private String createMessage(){
 		String message = this.getMessage().getText();
-		message = message.replace("\r\n", "<br>").replace("\n", "<br>");
+		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
 		message +="<br>";
 		if(this.optReq.isSelected()){
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
@@ -626,7 +626,13 @@ public class SendToFaction {
 						(inv.getInvocationContext() == inv.CONTEXT_MESSAGE_EDITOR_REQUEST ||inv.getInvocationContext() == inv.CONTEXT_MESSAGE_VIEWER_REQUEST)){
 					int xy [] = inv.getSelectionBounds();
 					byte [] selectedText = Arrays.copyOfRange(req.getRequest(), xy[0], xy[1]);
+					
 					tmp = new String (selectedText);
+					if(xy[0] != 0)
+						tmp = "[ ...snip... ]\r\n" + tmp + "\r\n[ ...snip... ]\r\n";
+					else
+						tmp = tmp + "\r\n[ ...snip... ]\r\n";
+					
 				}else
 					tmp = new String(req.getRequest());
 				
@@ -650,7 +656,7 @@ public class SendToFaction {
 				}
 					
 				String data = StringEscapeUtils.escapeHtml(tmp);
-				data = data.replaceAll("\r", "").replace("\n", "<br/>");
+				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 				
 				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 				message += data;
@@ -669,6 +675,10 @@ public class SendToFaction {
 					int xy [] = inv.getSelectionBounds();
 					byte [] selectedText = Arrays.copyOfRange(req.getResponse(), xy[0], xy[1]);
 					tmp = new String (selectedText);
+					if(xy[0] != 0)
+						tmp = "[ ...snip... ]\r\n" + tmp + "\r\n[ ...snip... ]\r\n";
+					else
+						tmp = tmp + "\r\n[ ...snip... ]\r\n";
 				}else
 					tmp = new String(req.getResponse());
 				
@@ -692,7 +702,7 @@ public class SendToFaction {
 				}
 				
 				String data = StringEscapeUtils.escapeHtml(tmp);
-				data = data.replaceAll("\r", "").replace("\n", "<br/>");
+				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 				message += data;
 				message += "</pre>";

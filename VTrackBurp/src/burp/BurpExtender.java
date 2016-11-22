@@ -36,7 +36,7 @@ public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
 			
 			@Override
 			public void run() {
-				factionUI = new FactionGUI();
+				factionUI = new FactionGUI(cb);
 				callbacks.customizeUiComponent(factionUI);
 				callbacks.addSuiteTab(BurpExtender.this);
 			}

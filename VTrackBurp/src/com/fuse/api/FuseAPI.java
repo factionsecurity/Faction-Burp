@@ -208,5 +208,9 @@ public class FuseAPI {
 		else 
 			return 0;
 	}
+	
+	public String getCSS(){
+		return SERVER.replace("api", "") + "service/rd_styles.css";
+	}
 
 }
