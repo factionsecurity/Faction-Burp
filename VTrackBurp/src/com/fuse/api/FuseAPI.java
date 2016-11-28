@@ -27,6 +27,7 @@ public class FuseAPI {
 	public static String ADDDEFAULTVULN="/assessments/addDefaultVuln/";
 	public static String SEARCH_DEFAULT_VULN="/vulnerabilities/default/";
 	public static String QUEUE="/assessments/queue";
+	public static String VQUEUE="/verifications/queue";
 	public static String GETVULN="/assessments/vuln/";
 	public static String GETVULNS="/assessments/vulns/";
 	public static String SETNOTE="/assessments/notes/";

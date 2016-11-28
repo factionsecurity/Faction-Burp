@@ -56,6 +56,11 @@ import javax.swing.border.EtchedBorder;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.Toolkit;
+import javax.swing.JScrollPane;
+
+import org.commonmark.node.*;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.HtmlRenderer;
 
 public class SendToFaction {
 
@@ -83,6 +88,8 @@ public class SendToFaction {
 	private JComboBox severity;
 	private JCheckBox useSelected;
 	private HashMap<String, Integer> levels = new HashMap();
+	private JScrollPane scrollPane;
+	private JPanel panel_1;
 	
 	
 
@@ -120,7 +127,7 @@ public class SendToFaction {
 		frame = new JFrame();
 		frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.setBounds(100, 100, 794, 534);
+		frame.setBounds(100, 100, 797, 777);
 		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		GridBagLayout gridBagLayout = new GridBagLayout();
 		gridBagLayout.columnWidths = new int[]{0, 130, 0, 0, 0};
@@ -428,30 +435,35 @@ public class SendToFaction {
 		gbc_rigidArea_1.gridy = 5;
 		frame.getContentPane().add(rigidArea_1, gbc_rigidArea_1);
 		
-		JPanel panel_1 = new JPanel();
-		panel_1.setBorder(new TitledBorder(new LineBorder(new Color(171, 173, 179)), "Message (Optional)", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(0, 0, 0)));
+		panel_1 = new JPanel();
+		panel_1.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null), "Exploit Steps (Supports Markdown)", TitledBorder.LEADING, TitledBorder.TOP, null, null));
 		GridBagConstraints gbc_panel_1 = new GridBagConstraints();
+		gbc_panel_1.fill = GridBagConstraints.BOTH;
 		gbc_panel_1.gridwidth = 2;
 		gbc_panel_1.insets = new Insets(0, 0, 5, 5);
-		gbc_panel_1.fill = GridBagConstraints.BOTH;
 		gbc_panel_1.gridx = 1;
 		gbc_panel_1.gridy = 6;
 		frame.getContentPane().add(panel_1, gbc_panel_1);
 		GridBagLayout gbl_panel_1 = new GridBagLayout();
-		gbl_panel_1.columnWidths = new int[]{291, 0};
-		gbl_panel_1.rowHeights = new int[]{25, 0};
-		gbl_panel_1.columnWeights = new double[]{1.0, Double.MIN_VALUE};
+		gbl_panel_1.columnWidths = new int[]{130, 0, 0};
+		gbl_panel_1.rowHeights = new int[]{0, 0};
+		gbl_panel_1.columnWeights = new double[]{1.0, 1.0, Double.MIN_VALUE};
 		gbl_panel_1.rowWeights = new double[]{1.0, Double.MIN_VALUE};
 		panel_1.setLayout(gbl_panel_1);
 		
+		scrollPane = new JScrollPane();
+		GridBagConstraints gbc_scrollPane = new GridBagConstraints();
+		gbc_scrollPane.fill = GridBagConstraints.BOTH;
+		gbc_scrollPane.gridwidth = 2;
+		gbc_scrollPane.insets = new Insets(0, 0, 0, 5);
+		gbc_scrollPane.gridx = 0;
+		gbc_scrollPane.gridy = 0;
+		panel_1.add(scrollPane, gbc_scrollPane);
+		
 		message_1 = new JEditorPane();
+		scrollPane.setViewportView(message_1);
 		message_1.setText("Enter Exploit Steps or Additional Informaiton here");
 		message_1.setContentType("text/plain");
-		GridBagConstraints gbc_message_1 = new GridBagConstraints();
-		gbc_message_1.fill = GridBagConstraints.BOTH;
-		gbc_message_1.gridx = 0;
-		gbc_message_1.gridy = 0;
-		panel_1.add(message_1, gbc_message_1);
 		
 		btnSave = new JButton("Save");
 		/*
@@ -545,6 +557,7 @@ public class SendToFaction {
 	
 	private String createScanMessage(int scanIndex){
 		String message = this.getMessage().getText();
+		
 		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
 		message +="<br/>";
 		String issueDetail = inv.getSelectedIssues()[scanIndex].getIssueDetail();
@@ -615,7 +628,12 @@ public class SendToFaction {
 	}
 	private String createMessage(){
 		String message = this.getMessage().getText();
-		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
+		Parser parser = Parser.builder().build();
+		Node document = parser.parse(message);
+		HtmlRenderer renderer = HtmlRenderer.builder().build();
+		message = renderer.render(document);
+		message = message.replaceAll("<code>", "<pre>").replaceAll("</code>", "</pre>");
+		message = message.replaceAll("</p>", "<br/>");
 		message +="<br>";
 		if(this.optReq.isSelected()){
 			IHttpRequestResponse  req = inv.getSelectedMessages()[0];

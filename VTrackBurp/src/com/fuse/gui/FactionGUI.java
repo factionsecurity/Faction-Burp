@@ -97,6 +97,7 @@ public class FactionGUI extends JPanel  {
 	private JTable queueTable;
 	private VTTableModel asmtModel;
 	private VTTableModel vulnModel;
+	private VTTableModel verModel;
 	private JTable vulnTable;
 	private JTextField asmtName;
 	private JEditorPane notesTxt;
@@ -106,6 +107,7 @@ public class FactionGUI extends JPanel  {
 	private JTextField refreshRate;
 	private Timer refreshTimer;
 	private Long appId = -1l;
+	private JTable verTable;
 
 
 
@@ -125,22 +127,115 @@ public class FactionGUI extends JPanel  {
 		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		contentPane.add(tabbedPane);
 		
-		JPanel queuePanel = new JPanel();
-		tabbedPane.addTab("Queue", null, queuePanel, null);
-		GridBagLayout gbl_queuePanel = new GridBagLayout();
-		gbl_queuePanel.columnWidths = new int[]{0, 0};
-		gbl_queuePanel.rowHeights = new int[]{644, 0, 0};
-		gbl_queuePanel.columnWeights = new double[]{1.0, Double.MIN_VALUE};
-		gbl_queuePanel.rowWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
-		queuePanel.setLayout(gbl_queuePanel);
+		JSplitPane combinedQueue = new JSplitPane();
+		combinedQueue.setResizeWeight(0.5);
+		tabbedPane.addTab("Queues", null, combinedQueue, null);
 		
-		JScrollPane scrollPane = new JScrollPane();
-		GridBagConstraints gbc_scrollPane = new GridBagConstraints();
-		gbc_scrollPane.insets = new Insets(0, 0, 5, 0);
-		gbc_scrollPane.fill = GridBagConstraints.BOTH;
-		gbc_scrollPane.gridx = 0;
-		gbc_scrollPane.gridy = 0;
-		queuePanel.add(scrollPane, gbc_scrollPane);
+		JPanel panel_3 = new JPanel();
+		combinedQueue.setRightComponent(panel_3);
+		GridBagLayout gbl_panel_3 = new GridBagLayout();
+		gbl_panel_3.columnWidths = new int[]{498, 0};
+		gbl_panel_3.rowHeights = new int[]{0, 0, 0};
+		gbl_panel_3.columnWeights = new double[]{1.0, Double.MIN_VALUE};
+		gbl_panel_3.rowWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
+		panel_3.setLayout(gbl_panel_3);
+		
+		JScrollPane scrollPane_3 = new JScrollPane();
+		GridBagConstraints gbc_scrollPane_3 = new GridBagConstraints();
+		gbc_scrollPane_3.fill = GridBagConstraints.BOTH;
+		gbc_scrollPane_3.insets = new Insets(0, 0, 5, 0);
+		gbc_scrollPane_3.gridx = 0;
+		gbc_scrollPane_3.gridy = 0;
+		panel_3.add(scrollPane_3, gbc_scrollPane_3);
+		
+		verTable = new JTable();
+		String vColumnNames[] = { "Start", "Name", "Vulnerability", "Severity", "VulnId" };
+		verModel = new VTTableModel(vColumnNames);
+		verTable.setAutoCreateRowSorter(true);
+		verTable.setModel(verModel);
+		Vector vvect = new Vector();
+		vvect.add("");vvect.add("");vvect.add("");vvect.add("");
+		verModel.addRow(vvect);
+		verTable.getRowSorter().toggleSortOrder(0);
+		verTable.addMouseListener(new MouseAdapter(){
+		    public void mouseClicked(MouseEvent evnt) {
+		        if (evnt.getClickCount() == 1) {
+		        	
+		        	int r = verTable.getSelectedRow();
+		        	int row = verTable.convertRowIndexToModel(r);
+		        	
+		        	Long vid = (Long)verModel.getValueAt(row, 4);
+		        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
+		        	JSONObject j = (JSONObject)json.get(0);
+		        	JSONArray s = (JSONArray)j.get("Steps");
+		        	List<String> Images = new ArrayList<String>();
+		        	List<String> Steps = new ArrayList<String>();
+		        	List<Integer>ImageIds = new ArrayList<Integer>();
+		        	for(int i=0; i< s.size(); i++){
+		        		JSONObject jObj = (JSONObject)s.get(i);
+		        		Steps.add((String)jObj.get("Description"));
+		        		Images.add((String)jObj.get("ScreenShot"));
+		        		if(jObj.get("ImageId")!= null)
+		        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
+		        		
+		        		
+		        	}
+		        	//com.fuse.data.Handler.install();
+		        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
+		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+		        	test.setSize(900, 1000);
+		        	test.setVisible(true);
+		        }
+		    }
+		});
+		
+		
+		scrollPane_3.setViewportView(verTable);
+		
+		JPanel panel_4 = new JPanel();
+		GridBagConstraints gbc_panel_4 = new GridBagConstraints();
+		gbc_panel_4.anchor = GridBagConstraints.WEST;
+		gbc_panel_4.fill = GridBagConstraints.VERTICAL;
+		gbc_panel_4.gridx = 0;
+		gbc_panel_4.gridy = 1;
+		panel_3.add(panel_4, gbc_panel_4);
+		
+		JButton updateVerBtn = new JButton("Update");
+		panel_4.add(updateVerBtn);
+		
+		JPanel panel_5 = new JPanel();
+		combinedQueue.setLeftComponent(panel_5);
+		GridBagLayout gbl_panel_5 = new GridBagLayout();
+		gbl_panel_5.columnWidths = new int[]{0, 0};
+		gbl_panel_5.rowHeights = new int[]{0, 0, 0};
+		gbl_panel_5.columnWeights = new double[]{1.0, Double.MIN_VALUE};
+		gbl_panel_5.rowWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
+		panel_5.setLayout(gbl_panel_5);
+		
+		JScrollPane scrollPane_4 = new JScrollPane();
+		GridBagConstraints gbc_scrollPane_4 = new GridBagConstraints();
+		gbc_scrollPane_4.insets = new Insets(0, 0, 5, 0);
+		gbc_scrollPane_4.fill = GridBagConstraints.BOTH;
+		gbc_scrollPane_4.gridx = 0;
+		gbc_scrollPane_4.gridy = 0;
+		panel_5.add(scrollPane_4, gbc_scrollPane_4);
+		
+		JPanel panel_6 = new JPanel();
+		GridBagConstraints gbc_panel_6 = new GridBagConstraints();
+		gbc_panel_6.anchor = GridBagConstraints.WEST;
+		gbc_panel_6.fill = GridBagConstraints.VERTICAL;
+		gbc_panel_6.gridx = 0;
+		gbc_panel_6.gridy = 1;
+		panel_5.add(panel_6, gbc_panel_6);
+		
+		JButton btnNewButton = new JButton("Update");
+		panel_6.add(btnNewButton);
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				updateAPI();
+
+			}
+		});
 		
 		queueTable = new JTable();
 		String columnNames[] = { "AppId", "AppName", "Start Date", "EndDate" };
@@ -166,8 +261,9 @@ public class FactionGUI extends JPanel  {
 		        	asmtName.setEditable(false);
 		        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
 		        	String [] notes = NotesStr.split("<!--Split-->");
-		        	notesTxt.setText(notes[0]);
-		        	notes2Txt.setText(notes[1]);
+		        	notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
+		        	if(notes.length==2)
+		        		notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
 		        	JSONArray json = api.executeGet("/assessments/history/" + appId);
 		        	for(int i = 0; i<json.size(); i++){
 		        		JSONObject obj = (JSONObject) json.get(i);
@@ -186,26 +282,7 @@ public class FactionGUI extends JPanel  {
 		         }
 		     }}
 		    );
-		
-		scrollPane.setViewportView(queueTable);
-		
-		JPanel panel = new JPanel();
-		GridBagConstraints gbc_panel = new GridBagConstraints();
-		gbc_panel.anchor = GridBagConstraints.SOUTH;
-		gbc_panel.fill = GridBagConstraints.HORIZONTAL;
-		gbc_panel.gridx = 0;
-		gbc_panel.gridy = 1;
-		queuePanel.add(panel, gbc_panel);
-		panel.setLayout(new GridLayout(0, 1, 0, 0));
-		
-		JButton btnNewButton = new JButton("Update");
-		btnNewButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				updateAPI();
-
-			}
-		});
-		panel.add(btnNewButton);
+		scrollPane_4.setViewportView(queueTable);
 		
 		JPanel asmtPanel = new JPanel();
 		tabbedPane.addTab("Assessment", null, asmtPanel, null);
@@ -484,7 +561,31 @@ public class FactionGUI extends JPanel  {
 	
 	private void updateAPI(){
 		
-		
+		/*
+		 * Get Verificaiton Queue
+		 */
+		JSONArray vjson = api.executeGet(FuseAPI.VQUEUE);
+		if(vjson != null){
+			
+			for(int i = verModel.getRowCount()-1; i >=0; i--){
+				verModel.removeRow(i);
+				
+			}
+			for(int i = 0 ; i< vjson.size(); i++){
+				JSONObject obj = (JSONObject)vjson.get(i);
+				Vector vect = new Vector();
+				vect.add(convertDate((String)obj.get("Start")));
+				vect.add(obj.get("AssessmentName"));
+				vect.add(obj.get("Name"));
+				vect.add(obj.get("OverallStr"));
+				vect.add(obj.get("Id"));
+				verModel.addRow(vect);
+			}
+		}
+			
+		/*
+		 * Get Assessment Queue	
+		 */
 		JSONArray json = api.executeGet(FuseAPI.QUEUE);
 		if(json == null)
 			return;
