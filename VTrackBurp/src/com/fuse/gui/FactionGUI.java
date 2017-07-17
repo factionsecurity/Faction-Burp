@@ -592,7 +592,7 @@ public class FactionGUI extends JPanel  {
 		/*
 		 * Update Assessment information.
 		 */
-		if(asmtModel.getRowCount() != json.size()){
+		if(asmtModel.getRowCount() != json.size() || json.size() == 1 ){
 			Notes.clear();
 			for(int i = asmtModel.getRowCount()-1; i >=0; i--){
 				asmtModel.removeRow(i);
