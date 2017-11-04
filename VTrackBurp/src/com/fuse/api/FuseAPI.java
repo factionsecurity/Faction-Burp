@@ -149,7 +149,7 @@ public class FuseAPI {
 		  HttpURLConnection connection = null;  
 		  try {
 		    //Create connection
-		    URL url = new URL(this.SERVER + targetURL);
+		    URL url = new URL(this.SERVER + targetURL.replace("+", "%20"));
 		    connection = (HttpURLConnection)url.openConnection();
 		    connection.setRequestMethod("GET");
 

@@ -43,7 +43,7 @@ import org.json.simple.parser.ParseException;
 import com.fuse.api.FuseAPI;
 
 import burp.IBurpExtenderCallbacks;
-import burp.cb;
+
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -59,9 +59,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -106,7 +108,7 @@ public class FactionGUI extends JPanel  {
 	private FuseAPI api = new FuseAPI();
 	private JTextField refreshRate;
 	private Timer refreshTimer;
-	private Long appId = -1l;
+	private String appId = "";
 	private JTable verTable;
 
 
@@ -160,31 +162,33 @@ public class FactionGUI extends JPanel  {
 		verTable.addMouseListener(new MouseAdapter(){
 		    public void mouseClicked(MouseEvent evnt) {
 		        if (evnt.getClickCount() == 1) {
-		        	
-		        	int r = verTable.getSelectedRow();
-		        	int row = verTable.convertRowIndexToModel(r);
-		        	
-		        	Long vid = (Long)verModel.getValueAt(row, 4);
-		        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
-		        	JSONObject j = (JSONObject)json.get(0);
-		        	JSONArray s = (JSONArray)j.get("Steps");
-		        	List<String> Images = new ArrayList<String>();
-		        	List<String> Steps = new ArrayList<String>();
-		        	List<Integer>ImageIds = new ArrayList<Integer>();
-		        	for(int i=0; i< s.size(); i++){
-		        		JSONObject jObj = (JSONObject)s.get(i);
-		        		Steps.add((String)jObj.get("Description"));
-		        		Images.add((String)jObj.get("ScreenShot"));
-		        		if(jObj.get("ImageId")!= null)
-		        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
-		        		
-		        		
+			        synchronized(this){
+			        	
+			        	int r = verTable.getSelectedRow();
+			        	int row = verTable.convertRowIndexToModel(r);
+			        	
+			        	Long vid = (Long)verModel.getValueAt(row, 4);
+			        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
+			        	JSONObject j = (JSONObject)json.get(0);
+			        	JSONArray s = (JSONArray)j.get("Steps");
+			        	List<String> Images = new ArrayList<String>();
+			        	List<String> Steps = new ArrayList<String>();
+			        	List<Integer>ImageIds = new ArrayList<Integer>();
+			        	for(int i=0; i< s.size(); i++){
+			        		JSONObject jObj = (JSONObject)s.get(i);
+			        		Steps.add((String)jObj.get("Description"));
+			        		Images.add((String)jObj.get("ScreenShot"));
+			        		if(jObj.get("ImageId")!= null)
+			        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
+			        		
+			        		
+			        	}
+			        	//com.fuse.data.Handler.install();
+			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
+			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+			        	test.setSize(900, 1000);
+			        	test.setVisible(true);
 		        	}
-		        	//com.fuse.data.Handler.install();
-		        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
-		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-		        	test.setSize(900, 1000);
-		        	test.setVisible(true);
 		        }
 		    }
 		});
@@ -249,37 +253,45 @@ public class FactionGUI extends JPanel  {
 		queueTable.addMouseListener(new MouseAdapter(){
 		    public void mouseClicked(MouseEvent evnt) {
 		        if (evnt.getClickCount() == 1) {
-		        	int r = queueTable.getSelectedRow();
-		        	int row = queueTable.convertRowIndexToModel(r);
-		        	
-		        	for(int i = vulnModel.getRowCount()-1; i >=0; i--){
-						vulnModel.removeRow(i);
-						
-					}
-		        	appId = Long.parseLong(""+asmtModel.getValueAt(row, 0));
-		        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
-		        	asmtName.setEditable(false);
-		        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
-		        	String [] notes = NotesStr.split("<!--Split-->");
-		        	notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
-		        	if(notes.length==2)
-		        		notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
-		        	JSONArray json = api.executeGet("/assessments/history/" + appId);
-		        	for(int i = 0; i<json.size(); i++){
-		        		JSONObject obj = (JSONObject) json.get(i);
-		        		Vector v = new Vector();
-		        		v.add(obj.get("Name"));
-		        		v.add(obj.get("OverallStr"));
-		        		v.add(obj.get("ImpactStr"));
-		        		v.add(obj.get("LikelyhoodStr"));
-		        		v.add(obj.get("Opened"));
-		        		v.add(obj.get("Closed"));
-		        		v.add(obj.get("Id"));
-		        		vulnModel.addRow(v);
-		        	}
-		        	
-		        	
-		         }
+		        	synchronized(this){
+			        	int r = queueTable.getSelectedRow();
+			        	int row = queueTable.convertRowIndexToModel(r);
+			        	
+			        	for(int i = vulnModel.getRowCount()-1; i >=0; i--){
+							vulnModel.removeRow(i);
+							
+						}
+			        	appId = ""+asmtModel.getValueAt(row, 0);
+			        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
+			        	asmtName.setEditable(false);
+			        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
+			        	String [] notes = NotesStr.split("<!--Split-->");
+			        	notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
+			        	if(notes.length==2)
+			        		notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
+			        	JSONArray json = new JSONArray();
+						try {
+							json = api.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+						} catch (UnsupportedEncodingException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+			        	for(int i = 0; i<json.size(); i++){
+			        		JSONObject obj = (JSONObject) json.get(i);
+			        		Vector v = new Vector();
+			        		v.add(obj.get("Name"));
+			        		v.add(obj.get("OverallStr"));
+			        		v.add(obj.get("ImpactStr"));
+			        		v.add(obj.get("LikelyhoodStr"));
+			        		v.add(obj.get("Opened"));
+			        		v.add(obj.get("Closed"));
+			        		v.add(obj.get("Id"));
+			        		vulnModel.addRow(v);
+			        	}
+			        	
+			        	
+			         }
+		        }
 		     }}
 		    );
 		scrollPane_4.setViewportView(queueTable);
@@ -454,29 +466,31 @@ public class FactionGUI extends JPanel  {
 		vulnTable.addMouseListener(new MouseAdapter(){
 		    public void mouseClicked(MouseEvent evnt) {
 		        if (evnt.getClickCount() == 1) {
-		        	int r = vulnTable.getSelectedRow();
-		        	int row = vulnTable.convertRowIndexToModel(r);
-		        	Long vid = (Long)vulnModel.getValueAt(row, 6);
-		        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
-		        	JSONObject j = (JSONObject)json.get(0);
-		        	JSONArray s = (JSONArray)j.get("Steps");
-		        	List<String> Images = new ArrayList<String>();
-		        	List<String> Steps = new ArrayList<String>();
-		        	List<Integer>ImageIds = new ArrayList<Integer>();
-		        	for(int i=0; i< s.size(); i++){
-		        		JSONObject jObj = (JSONObject)s.get(i);
-		        		Steps.add((String)jObj.get("Description"));
-		        		Images.add((String)jObj.get("ScreenShot"));
-		        		if(jObj.get("ImageId")!= null)
-		        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
-		        		
-		        		
+		        	synchronized(this){
+			        	int r = vulnTable.getSelectedRow();
+			        	int row = vulnTable.convertRowIndexToModel(r);
+			        	Long vid = (Long)vulnModel.getValueAt(row, 6);
+			        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
+			        	JSONObject j = (JSONObject)json.get(0);
+			        	JSONArray s = (JSONArray)j.get("Steps");
+			        	List<String> Images = new ArrayList<String>();
+			        	List<String> Steps = new ArrayList<String>();
+			        	List<Integer>ImageIds = new ArrayList<Integer>();
+			        	for(int i=0; i< s.size(); i++){
+			        		JSONObject jObj = (JSONObject)s.get(i);
+			        		Steps.add((String)jObj.get("Description"));
+			        		Images.add((String)jObj.get("ScreenShot"));
+			        		if(jObj.get("ImageId")!= null)
+			        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
+			        		
+			        		
+			        	}
+			        	//com.fuse.data.Handler.install();
+			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
+			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+			        	test.setSize(900, 1000);
+			        	test.setVisible(true);
 		        	}
-		        	//com.fuse.data.Handler.install();
-		        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
-		        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-		        	test.setSize(900, 1000);
-		        	test.setVisible(true);
 		        	
 		        }
 		    }
@@ -559,7 +573,7 @@ public class FactionGUI extends JPanel  {
 		
 	}
 	
-	private void updateAPI(){
+	private synchronized void  updateAPI() {
 		
 		/*
 		 * Get Verificaiton Queue
@@ -617,8 +631,14 @@ public class FactionGUI extends JPanel  {
 		/*
 		 * Add Only new findings to the table if an application is selected.
 		 */
-		if(appId != -1l){
-			JSONArray vulns = api.executeGet("/assessments/history/" + appId);
+		if(!appId.equals("")){
+			JSONArray vulns = new JSONArray();
+			try {
+				vulns = api.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         	for(int i = 0; i<vulns.size(); i++){
         		JSONObject obj = (JSONObject) vulns.get(i);
         		Vector v = new Vector();
@@ -687,7 +707,7 @@ public class FactionGUI extends JPanel  {
 		
 	}
 	
-	public Long getAppId(){
+	public String getAppId(){
 		return this.appId;
 	}
 	private void playSoundInternal(InputStream f) {

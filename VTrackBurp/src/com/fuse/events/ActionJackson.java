@@ -14,8 +14,8 @@ public class ActionJackson implements ActionListener{
 	private IBurpExtenderCallbacks cb;
 	private IContextMenuInvocation inv;
 	private boolean newVuln;
-	private Long APPID;
-	public ActionJackson(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, Long appid){
+	private String APPID;
+	public ActionJackson(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, String appid){
 		this.cb = cb;
 		this.inv = inv;
 		this.newVuln = newVuln;

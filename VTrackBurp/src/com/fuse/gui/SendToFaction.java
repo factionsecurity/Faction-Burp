@@ -84,7 +84,7 @@ public class SendToFaction {
 	private JTextField vulnSearch;
 	private JComboBox defaultVulns;
 	private HashMap<String, JSONObject> _defaultVulns = new HashMap<String,JSONObject>();
-	private Long APPID;
+	private String APPID;
 	private JComboBox severity;
 	private JCheckBox useSelected;
 	private HashMap<String, Integer> levels = new HashMap();
@@ -97,7 +97,7 @@ public class SendToFaction {
 	/**
 	 * Create the application.
 	 */
-	public SendToFaction(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, Long appid) {
+	public SendToFaction(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, String appid) {
 		this.cb = cb;
 		this.inv = inv;
 		this.newVuln=newVuln;
@@ -548,7 +548,7 @@ public class SendToFaction {
 		for(int i=0; i< asmts.size(); i++){
 			JSONObject obj = (JSONObject)asmts.get(i);
 			assessmentList.addItem(obj.get("AppId") + " " + obj.get("Name"));
-			if(this.APPID != null && Long.parseLong(""+obj.get("AppId")) == this.APPID )
+			if(this.APPID != null && (""+obj.get("AppId")).equals(this.APPID) )
 				assessmentList.setSelectedIndex(i);
 		}
 		

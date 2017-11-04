@@ -97,7 +97,7 @@ public class BurpImporter {
 	
 
 	private static void exit(int i) {
-		// TODO Auto-generated method stub
+		
 		
 	}
 
