@@ -66,6 +66,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -693,12 +694,13 @@ public class FactionGUI extends JPanel  {
 	
 	
 	public static String convertDate(String date){
-		SimpleDateFormat sdf1 = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy");
+		SimpleDateFormat sdf1 = new SimpleDateFormat("MMM dd HH:mm:ss zzz yyyy");
 		SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
 		try {
-			Date d = sdf1.parse(date);
-			return sdf2.format(d);
-		} catch (java.text.ParseException e) {
+			Calendar c = Calendar.getInstance();
+			c.setTimeInMillis(Long.parseLong(date));
+			return sdf2.format(c.getTime());
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

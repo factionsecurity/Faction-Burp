@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Properties;
 
 import org.json.simple.JSONArray;
@@ -57,7 +58,8 @@ public class FuseAPI {
 		props.setProperty("server", Server);
 		props.setProperty("token", Token);
 		props.setProperty("refresh", Refresh);
-		File f = new File("faction.properties");
+		String path = System.getProperty("user.home") + File.separator +"/.faction" + File.separator;
+        File f = new File(path + "faction.properties");
 		OutputStream out;
 		try {
 			out = new FileOutputStream( f );
@@ -76,9 +78,16 @@ public class FuseAPI {
 	    InputStream is = null;
 	 
 	    try {
-	        File f = new File("faction.properties");
-	        if(!f.exists())
+	    	String path = System.getProperty("user.home") + File.separator +"/.faction" + File.separator;
+	        File f = new File(path + "faction.properties");
+	        
+	        if(!f.exists()) {
+	        	File p = new File(path);
+	        	if(!p.exists()) {
+	        		p.mkdir();
+	        	}
 	        	f.createNewFile();
+	        }
 	        is = new FileInputStream( f );
 	        props.load(is);
 	        this.SERVER = props.getProperty("server", "");
