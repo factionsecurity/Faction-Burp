@@ -43,7 +43,7 @@ import org.json.simple.parser.ParseException;
 import com.fuse.api.FuseAPI;
 
 import burp.IBurpExtenderCallbacks;
-
+import burp.IExtensionStateListener;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -92,7 +92,7 @@ import javax.swing.border.LineBorder;
 import javax.swing.JPasswordField;
 import javax.swing.JSplitPane;
 
-public class FactionGUI extends JPanel  {
+public class FactionGUI extends JPanel implements IExtensionStateListener  {
 
 	private JPanel contentPane;
 	private JTextField serverTxt;
@@ -113,11 +113,17 @@ public class FactionGUI extends JPanel  {
 	private JTable verTable;
 
 
-
+	public void extensionUnloaded(){
+		System.out.println("Unloading....");
+		refreshTimer.cancel();
+	}
 	/**
 	 * Create the frame.
 	 */
 	public FactionGUI(IBurpExtenderCallbacks cb) {
+		cb.registerExtensionStateListener(this);
+		
+
 		//com.fuse.data.Handler.install();
 		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1099, 749);
@@ -486,8 +492,9 @@ public class FactionGUI extends JPanel  {
 			        		
 			        		
 			        	}
+						
 			        	//com.fuse.data.Handler.install();
-			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
+			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(), Steps, Images, ImageIds, cb);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);

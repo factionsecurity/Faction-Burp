@@ -26,7 +26,7 @@ public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks) {
 		
 		this.cb = callbacks;
-		callbacks.setExtensionName("FuseSoft Security FACTION");
+		callbacks.setExtensionName("FACTION");
 		callbacks.registerContextMenuFactory(this);
 		//System.out.println("Class : " + this.getUiComponent().getClass().getName());
 		

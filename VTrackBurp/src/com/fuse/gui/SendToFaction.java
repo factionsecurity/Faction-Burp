@@ -24,7 +24,8 @@ import burp.IBurpExtenderCallbacks;
 import burp.IContextMenuInvocation;
 import burp.IHttpRequestResponse;
 import burp.IScanIssue;
-import flex.messaging.util.URLEncoder;
+//import flex.messaging.util.URLEncoder;
+import java.net.URLEncoder;
 
 import java.awt.FlowLayout;
 import javax.swing.JEditorPane;
@@ -55,6 +56,7 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.border.EtchedBorder;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.UnsupportedEncodingException;
 import java.awt.Toolkit;
 import javax.swing.JScrollPane;
 
@@ -125,7 +127,7 @@ public class SendToFaction {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
+		//frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.setBounds(100, 100, 797, 777);
 		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -486,10 +488,14 @@ public class SendToFaction {
 							if(optFeed.isSelected())
 								feed = "true";
 							String b64 = new String(Base64.encode(createScanMessage(scanIndex)));
-							String postData = "name="+ URLEncoder.encode(name) + "&feed=" + feed + "&message=" +URLEncoder.encode(b64);
-							//postData+="&severity=" + FuseAPI.setSeverity(""+inv.getSelectedIssues()[scanIndex].getSeverity());
-							postData+="&severity=" + levels.get(inv.getSelectedIssues()[scanIndex].getSeverity());
-							api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+							try{
+								String postData = "name="+ URLEncoder.encode(name, "UTF-8") + "&feed=" + feed + "&message=" +URLEncoder.encode(b64, "UTF-8");
+								//postData+="&severity=" + FuseAPI.setSeverity(""+inv.getSelectedIssues()[scanIndex].getSeverity());
+								postData+="&severity=" + levels.get(inv.getSelectedIssues()[scanIndex].getSeverity());
+								api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+							} catch (UnsupportedEncodingException ex){
+								System.out.println(ex.getMessage());
+							}
 							
 						}
 					}else{ // adding a new vuln

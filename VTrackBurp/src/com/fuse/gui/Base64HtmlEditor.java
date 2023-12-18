@@ -13,7 +13,6 @@ import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
 import javax.swing.text.html.HTML;
 import javax.swing.text.html.HTMLEditorKit;
-import javax.xml.bind.DatatypeConverter;
 
 public class Base64HtmlEditor extends HTMLEditorKit {
 

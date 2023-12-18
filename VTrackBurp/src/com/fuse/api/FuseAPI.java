@@ -107,7 +107,7 @@ public class FuseAPI {
 		    connection = (HttpURLConnection)url.openConnection();
 		    connection.setRequestMethod("POST");
 
-		    connection.setRequestProperty("VTRK-API-KEY", this.TOKEN);
+		    connection.setRequestProperty("FACTION-API-KEY", this.TOKEN);
 		    connection.setRequestProperty("Content-Language", "en-US");  
 		    connection.setRequestProperty("Accept", "application/json");
 		    connection.setRequestProperty("Content-Type", 
@@ -162,31 +162,33 @@ public class FuseAPI {
 		    connection = (HttpURLConnection)url.openConnection();
 		    connection.setRequestMethod("GET");
 
-		    connection.setRequestProperty("VTRK-API-KEY", this.TOKEN);
+		    connection.setRequestProperty("FACTION-API-KEY", this.TOKEN);
 		    connection.setRequestProperty("Content-Language", "en-US");  
 		    connection.setRequestProperty("Accept", "application/json");
 
 		    connection.connect();
-
-		    //Get Response  
-		    InputStream is = connection.getInputStream();
-		    BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-		    StringBuilder response = new StringBuilder(); // or StringBuffer if not Java 5+ 
-		    String line;
-		    while((line = rd.readLine()) != null) {
-		      response.append(line);
-		      response.append('\r');
-		    }
-		    rd.close();
-		    
-		    JSONParser parser = new JSONParser();
-			try {
-				JSONArray json = (JSONArray) parser.parse(response.toString());
+			int statusCode = connection.getResponseCode();
+			if(statusCode == 200){
+				//Get Response  
+				InputStream is = connection.getInputStream();
+				BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+				StringBuilder response = new StringBuilder(); // or StringBuffer if not Java 5+ 
+				String line;
+				while((line = rd.readLine()) != null) {
+				response.append(line);
+				response.append('\r');
+				}
+				rd.close();
 				
-				return json;
-			} catch (ParseException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				JSONParser parser = new JSONParser();
+				try {
+					JSONArray json = (JSONArray) parser.parse(response.toString());
+					
+					return json;
+				} catch (ParseException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 			}
 		    return null;
 		  } catch (Exception e) {
