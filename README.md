@@ -1,9 +1,9 @@
-This Extension allows you to integrate BurpSuite into the [Faction](https://github.com/factionsecurity/faction) assessment collaboration framework. Faction is fully open source and free to use. 
+This Burp Suite Extension allows you to integrate BurpSuite into the [Faction](https://github.com/factionsecurity/faction) assessment collaboration framework. Faction is fully open source and free to use. 
 
 Faction allows you to:
-1. Automate reports
+1. Automate Vulnerability Reports
 2. Collaborate with other pen-testers
-3. Track vulnerabilties to closer
+3. Track Vulnerabilties to Closer
 
 
 ![image](https://github.com/factionsecurity/Faction-Burp/assets/2343831/64dd2508-4d38-41e7-ac40-617392ecd2ff)
