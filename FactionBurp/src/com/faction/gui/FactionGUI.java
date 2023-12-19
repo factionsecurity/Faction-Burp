@@ -473,23 +473,6 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 					}
 
 				}
-		        /*if ("Critical".equals(status)) {
-		            setBackground(new Color(231, 76, 60));
-		            setForeground(Color.WHITE);
-		        } else if ("High".equals(status)) {
-		            setBackground(new Color(230, 126, 34));
-		            setForeground(Color.WHITE);
-		        } else if ("Medium".equals(status)) {
-		            setBackground(new Color(52, 152, 219));
-		            setForeground(Color.WHITE);
-		        } else {
-		        	if(row%2==0){
-			            setBackground(table.getBackground());  
-		        	}else{
-		        		setBackground(Color.getColor("EEEEEE"));
-		        	}
-		        	setForeground(table.getForeground());
-		        }       */
 		        return this;
 		    }   
 		});
