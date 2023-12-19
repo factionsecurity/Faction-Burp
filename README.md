@@ -5,6 +5,13 @@ Faction allows you to:
 2. Collaborate with other pen-testers
 3. Track Vulnerabilties to Closer
 
+## Build from Source 
+```
+git clone git@github.com:factionsecurity/Faction-Burp.git
+cd Faction-Burp/FactionBurp
+mvn clean compile jar:jar assembly:single
+```
+
 
 ![image](https://github.com/factionsecurity/Faction-Burp/assets/2343831/64dd2508-4d38-41e7-ac40-617392ecd2ff)
 
