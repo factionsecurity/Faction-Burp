@@ -1,32 +1,46 @@
-package com.fuse.utils;
+package com.org.faction.utils;
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
+import java.util.function.Consumer;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JComboBox;
 
 import org.apache.commons.lang.StringEscapeUtils;
 
+import com.org.faction.api.FactionAPI;
 import com.sun.jersey.core.util.Base64;
 
 import burp.IHttpRequestResponse;
 
 public class FSUtils {
-	
-	public static int setSeverity(String severity){
-		if(severity.equals("Informational"))
-			return 0;
-		else if(severity.equals("Recommended"))
-			return 1;
-		else if(severity.equals("Low"))
-			return 2;
-		else if(severity.equals("Medium"))
-			return 3;
-		else if(severity.equals("High"))
-			return 4;
-		else if(severity.equals("Critical"))
-			return 4;
-		else 
-			return 0;
+
+	 
+
+	public static void setSeverityComboBoxDefaults(FactionAPI api, JComboBox jbox, String burpSeverityString, String [] severityStrings, Consumer<String> callback){	
+		jbox.setModel(new DefaultComboBoxModel(severityStrings));
+		int sevId = api.getSevMapping(burpSeverityString);
+		String sevStr = api.getSeverityStringFromSeverityId(sevId);
+		for(int j =0; j<jbox.getItemCount(); j++){
+			if(jbox.getItemAt(j).equals(sevStr)){
+				jbox.setSelectedIndex(j);
+				break;
+			}
+		}
+		jbox.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				String selectedSev = jbox.getSelectedItem().toString();
+				callback.accept(selectedSev);
+				//api.updateSev(burpSeverityString, selectedSev);
+			}
+		});
 	}
 	
 	public static Boolean ask(String question, Scanner reader){
@@ -116,6 +130,20 @@ public class FSUtils {
 		}
 		return message;
 	}
+	public static String hashText(String text){
+		try {
+			MessageDigest md;
+			md = MessageDigest.getInstance("MD5");
+			md.update(text.getBytes());
+			byte[] digest = md.digest();
+			return new String(digest, StandardCharsets.UTF_8);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+		return "";
+
+	}
+	
 
 
 }

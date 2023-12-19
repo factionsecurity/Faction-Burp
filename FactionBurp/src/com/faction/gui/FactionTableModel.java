@@ -1,21 +1,21 @@
-package com.fuse.gui;
+package com.org.faction.gui;
 
 import java.awt.Color;
 
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableModel;
 
-public class VTTableModel extends DefaultTableModel{
+public class FactionTableModel extends DefaultTableModel{
 	
 	private String[] columnNames;
 	private Object[][] data;
 	private boolean isVuln =false;
 	
-	public VTTableModel(String [] cNames, boolean isVuln){
+	public FactionTableModel(String [] cNames, boolean isVuln){
 		this.columnNames = cNames;
 		this.isVuln = isVuln;
 	}
-	public VTTableModel(String [] cNames){
+	public FactionTableModel(String [] cNames){
 		this.columnNames = cNames;
 	}
 	

@@ -1,10 +1,10 @@
-package com.fuse.events;
+package com.org.faction.events;
 
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import com.fuse.gui.SendToFaction;
+import com.org.faction.gui.SendToFaction;
 
 import burp.api.montoya.ui.contextmenu.AuditIssueContextMenuEvent;
 import burp.api.montoya.ui.contextmenu.ContextMenuEvent;

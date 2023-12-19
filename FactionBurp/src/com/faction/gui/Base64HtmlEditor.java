@@ -1,4 +1,4 @@
-package com.fuse.gui;
+package com.org.faction.gui;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;

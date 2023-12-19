@@ -1,4 +1,4 @@
-package com.fuse.gui;
+package com.org.faction.gui;
 
 
 import javax.swing.JFrame;
@@ -14,7 +14,8 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import com.fuse.api.FuseAPI;
+import com.org.faction.api.FactionAPI;
+import com.org.faction.utils.FSUtils;
 import com.sun.jersey.core.util.Base64;
 
 import burp.IBurpExtenderCallbacks;
@@ -46,8 +47,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map.Entry;
 import java.awt.event.ActionEvent;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.border.EtchedBorder;
@@ -64,7 +67,7 @@ public class SendToFaction {
 
 	public JFrame frame;
 	private JTextField vulnName;
-	private FuseAPI api = new FuseAPI();
+	private FactionAPI api = new FactionAPI();
 	private JSONArray asmts;
 	private JSONArray vulns;
 	private JCheckBox optReq;
@@ -83,7 +86,7 @@ public class SendToFaction {
 	private String appId;
 	private JComboBox severity;
 	private JCheckBox useSelected;
-	private HashMap<String, Integer> levels = new HashMap();
+	private LinkedHashMap<String, Integer> levels = new LinkedHashMap();
 	private JScrollPane scrollPane;
 	private JPanel panel_1;
 	private boolean isScan;
@@ -123,6 +126,7 @@ public class SendToFaction {
 	 * Initialize the contents of the frame.
 	 */
 	private void initialize() {
+		levels = api.getLevelMap();
 		frame = new JFrame();
 		//frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -181,7 +185,7 @@ public class SendToFaction {
 				if(!isNew){
 					int index = assessmentList.getSelectedIndex();
 					JSONObject obj = (JSONObject)asmts.get(index);
-					vulns = api.executeGet(FuseAPI.GETVULNS + obj.get("Id"));
+					vulns = api.executeGet(FactionAPI.GETVULNS + obj.get("Id"));
 					vulnList.removeAllItems();
 					for(int i=0; i< vulns.size(); i++){
 						JSONObject vuln = (JSONObject)vulns.get(i);
@@ -257,7 +261,7 @@ public class SendToFaction {
 			@Override
 			public void keyTyped(KeyEvent arg0) {
 				if(vulnSearch.getText().length() >= 2 ){
-					JSONArray jarray = api.executeGet(FuseAPI.SEARCH_DEFAULT_VULN + vulnSearch.getText());
+					JSONArray jarray = api.executeGet(FactionAPI.SEARCH_DEFAULT_VULN + vulnSearch.getText());
 					if(defaultVulns.getItemCount() > 0){
 						defaultVulns.removeAllItems();
 						_defaultVulns.clear();
@@ -399,17 +403,9 @@ public class SendToFaction {
 		
 		severity = new JComboBox();
 		severity.setToolTipText("Set the Overall Severity of the issue.");
-		JSONArray array = api.executeGet(FuseAPI.LEVELS);
-		List<String>levelStr = new ArrayList();
-		for(int i=0; i< array.size(); i++){
-			JSONObject obj = (JSONObject)array.get(i);
-			if((""+obj.get("name")).equals(""))
-				continue;
-			levels.put((""+obj.get("name")).toLowerCase(), ((Long)obj.get("id")).intValue());
-			levelStr.add((""+obj.get("name")).toLowerCase());
-		}
-		//new String[] {"Informational", "Recommended", "Low", "Medium", "High", "Critical"}
-		severity.setModel(new DefaultComboBoxModel(levelStr.toArray()));
+		String [] severityStrings = api.getSeverityStrings();
+		FSUtils.setSeverityComboBoxDefaults(api, severity, FactionAPI.BURP_SEV_HIGH, severityStrings, (updatedSeverityString) ->{});
+
 		GridBagConstraints gbc_severity = new GridBagConstraints();
 		gbc_severity.insets = new Insets(0, 0, 0, 5);
 		gbc_severity.anchor = GridBagConstraints.NORTHWEST;
@@ -474,12 +470,22 @@ public class SendToFaction {
 							AuditIssue baseIssue = issues.get(0);
 							String b64Description = new String(Base64.encode(baseIssue.definition().background()));
 							String b64Recommendation = new String(Base64.encode(""+baseIssue.definition().remediation()));
-							String details = "<b><u>Affected URLs:</u></b><br/>\n<ul>\n";
+							LinkedHashMap<String, String> supportingDetails = new LinkedHashMap();
+							String details = "<b><u>Affected URLs:</u></b>\n<ul>\n";
 							for(AuditIssue issue : issues){
 								details += "<li>" + issue.baseUrl() + "</li>\n";
+								if(issue.detail() != null){
+									String hash = FSUtils.hashText(issue.detail());
+									supportingDetails.put(hash, issue.detail());
+								}
 							}
-							details += "</ul>\n<br/>";
+							details += "</ul>\n";
+							String supportingDetailText = "";
+							for(Entry<String,String> entry : supportingDetails.entrySet()){
+								supportingDetailText += entry.getValue() + "\n";
+							}
 							details += createScanMessage(baseIssue);
+							details = supportingDetailText + details;
 							String b64Details = new String(Base64.encode(details));
 							try{
 								String postData = "name="+ URLEncoder.encode(baseIssue.name(), "UTF-8") 
@@ -487,10 +493,8 @@ public class SendToFaction {
 								+ "&details=" +URLEncoder.encode(b64Details, "UTF-8")
 								+ "&description=" + URLEncoder.encode(b64Description, "UTF-8")
 								+ "&recommendation="+ URLEncoder.encode(b64Recommendation, "UTF-8")
-								+ "&severity=" + levels.get(baseIssue.severity().toString().toLowerCase());
-								System.out.println(baseIssue.detail());
-								System.out.println(baseIssue.remediation());
-								api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+								+ "&severity=" + api.getSevMapping(baseIssue.severity().name());
+								api.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
 							} catch (UnsupportedEncodingException ex){
 								System.out.println(ex.getMessage());
 							}
@@ -507,9 +511,9 @@ public class SendToFaction {
 							postData+="&severity=" + levels.get(""+severity.getSelectedItem());
 							if(_defaultVulns.size() > 0){
 								JSONObject vobj = _defaultVulns.get(defaultVulns.getSelectedItem());
-								api.executePost(FuseAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
+								api.executePost(FactionAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
 							}else{
-								api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+								api.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
 							}
 						} catch (UnsupportedEncodingException ex){
 							System.out.println(ex.getMessage());
@@ -525,7 +529,7 @@ public class SendToFaction {
 					JSONObject vObj = (JSONObject)vulns.get(vindex);
 					String postData = "feed=false&details=" +URLEncoder.encode(b64);
 					postData+="&severity=" + levels.get(""+severity.getSelectedItem());
-					api.executePost(FuseAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
+					api.executePost(FactionAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
 					
 				}
 				
@@ -562,33 +566,35 @@ public class SendToFaction {
 		
 		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
 		message +="<br/>";
-		HttpRequestResponse reqres = issue.requestResponses().get(0);
-			
-		if(this.optReq.isSelected() && reqres.request() != null){
-			String req = reqres.request().toString();
-			message += "<b>Request: </b>";
-			message += "<pre class='code'>";
-			if(this.optCookies.isSelected()){
-				req = req.replaceAll("Cookie: .*\n", "Cookie: [ ...snip... ]\n");
+		if(issue.requestResponses() != null && issue.requestResponses().size() > 0){
+			HttpRequestResponse reqres = issue.requestResponses().get(0);
+				
+			if(this.optReq.isSelected() && reqres.request() != null){
+				String req = reqres.request().toString();
+				message += "<b>Request: </b>";
+				message += "<pre class='code'>";
+				if(this.optCookies.isSelected()){
+					req = req.replaceAll("Cookie: .*\n", "Cookie: [ ...snip... ]\n");
+				}
+				String data = StringEscapeUtils.escapeHtml(req);
+				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+				message += data;
+				message += "</pre>";
 			}
-			String data = StringEscapeUtils.escapeHtml(req);
-			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-			data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-			message += data;
-			message += "</pre>";
-		}
-		if(this.optResp.isSelected() && reqres.hasResponse()){
-			String resp = reqres.response().toString();
-			message += "<b>Response: </b>";
-			message += "<pre class='code'>";
-			if(this.optCookies.isSelected()){
-				resp = resp.replaceAll("Set-Cookie: .*\n", "Set-Cookie: [ ...snip... ]\n");
+			if(this.optResp.isSelected() && reqres.hasResponse()){
+				String resp = reqres.response().toString();
+				message += "<b>Response: </b>";
+				message += "<pre class='code'>";
+				if(this.optCookies.isSelected()){
+					resp = resp.replaceAll("Set-Cookie: .*\n", "Set-Cookie: [ ...snip... ]\n");
+				}
+				String data = StringEscapeUtils.escapeHtml(resp);
+				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+				message += data;
+				message += "</pre>";
 			}
-			String data = StringEscapeUtils.escapeHtml(resp);
-			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-			data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-			message += data;
-			message += "</pre>";
 		}
 		return message;
 		

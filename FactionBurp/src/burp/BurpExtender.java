@@ -9,8 +9,8 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 
-import com.fuse.events.FactionMenuItemsProvider;
-import com.fuse.gui.FactionGUI;
+import com.org.faction.events.FactionMenuItemsProvider;
+import com.org.faction.gui.FactionGUI;
 
 import burp.IBurpExtender;
 import burp.IBurpExtenderCallbacks;

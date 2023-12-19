@@ -1,4 +1,4 @@
-package com.fuse.gui;
+package com.org.faction.gui;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;

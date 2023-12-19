@@ -1,4 +1,4 @@
-package com.fuse.events;
+package com.org.faction.events;
 
 import java.awt.Component;
 import java.awt.EventQueue;
@@ -10,8 +10,8 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 
-import com.fuse.gui.FactionGUI;
-import com.fuse.gui.SendToFaction;
+import com.org.faction.gui.FactionGUI;
+import com.org.faction.gui.SendToFaction;
 
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ToolType;

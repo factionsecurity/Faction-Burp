@@ -1,4 +1,4 @@
-package com.fuse.gui;
+package com.org.faction.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -41,7 +41,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import com.fuse.api.FuseAPI;
+import com.org.faction.api.FactionAPI;
+import com.org.faction.utils.FSUtils;
 
 import burp.IBurpExtenderCallbacks;
 import burp.IExtensionStateListener;
@@ -101,15 +102,15 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	private JTextField serverTxt;
 	private JPasswordField tokenTxt;
 	private JTable queueTable;
-	private VTTableModel asmtModel;
-	private VTTableModel vulnModel;
-	private VTTableModel verModel;
+	private FactionTableModel asmtModel;
+	private FactionTableModel vulnModel;
+	private FactionTableModel verModel;
 	private JTable vulnTable;
 	private JTextField asmtName;
 	private JEditorPane notesTxt;
 	private JEditorPane notes2Txt;
 	private List<String> Notes = new ArrayList<String>();
-	private FuseAPI factionApi = new FuseAPI();
+	private FactionAPI factionApi = new FactionAPI();
 	private JTextField refreshRate;
 	private Timer refreshTimer;
 	private String appId = "";
@@ -223,22 +224,27 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 
 				String [] severityStrings = factionApi.getSeverityStrings();
 				JComboBox sevMapMed = new JComboBox();
-				setSeverityComboBoxDefaults(sevMapMed,"med",severityStrings);
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapMed,FactionAPI.BURP_SEV_MED,severityStrings, (selectedSev) ->{
+					factionApi.updateSev(FactionAPI.BURP_SEV_MED, selectedSev);
+				} );
 				sevMapMed.setBounds(32, 241, 104, 27);
 				ConfigPanel.add(sevMapMed);
 				
 				JComboBox sevMapHigh = new JComboBox();
-				setSeverityComboBoxDefaults(sevMapHigh,"high",severityStrings);
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapHigh,FactionAPI.BURP_SEV_HIGH,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_HIGH, selectedSev) );
 				sevMapHigh.setBounds(32, 209, 104, 27);
 				ConfigPanel.add(sevMapHigh);
 				
 				JComboBox sevMapLow = new JComboBox();
-				setSeverityComboBoxDefaults(sevMapLow,"low",severityStrings);
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapLow,FactionAPI.BURP_SEV_LOW,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_LOW, selectedSev) );
 				sevMapLow.setBounds(32, 273, 104, 27);
 				ConfigPanel.add(sevMapLow);
 				
 				JComboBox sevMapInfo = new JComboBox();
-				setSeverityComboBoxDefaults(sevMapInfo,"info",severityStrings);
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapInfo,FactionAPI.BURP_SEV_INFO,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_INFO, selectedSev) );
 				sevMapInfo.setBounds(32, 305, 104, 27);
 				ConfigPanel.add(sevMapInfo);
 		
@@ -265,7 +271,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		verTable = new JTable();
 		String vColumnNames[] = { "Start", "Name", "Vulnerability", "Severity", "VulnId" };
-		verModel = new VTTableModel(vColumnNames);
+		verModel = new FactionTableModel(vColumnNames);
 		verTable.setAutoCreateRowSorter(true);
 		verTable.setModel(verModel);
 		Vector vvect = new Vector();
@@ -297,7 +303,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        		
 			        	}
 			        	//com.fuse.data.Handler.install();
-			        	ExploitStepsPanel test = new ExploitStepsPanel(factionApi,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), (String)j.get("Details"), legacyCallback);
+			        	VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), (String)j.get("Details"), legacyCallback);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);
@@ -356,7 +362,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		queueTable = new JTable();
 		String columnNames[] = { "AppId", "AppName", "Start Date", "EndDate" };
-		asmtModel = new VTTableModel(columnNames);
+		asmtModel = new FactionTableModel(columnNames);
 		queueTable.setAutoCreateRowSorter(true);
 		queueTable.setModel(asmtModel);
 		Vector vect = new Vector();
@@ -531,7 +537,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		vulnTable = new JTable();
 		String vcolnames[] = { "Name", "Severity", "Impact", "LikelyHood", "Opened", "Closed", "vid" };
 		
-		vulnModel = new VTTableModel(vcolnames);
+		vulnModel = new FactionTableModel(vcolnames);
 		vulnTable.setAutoCreateRowSorter(true);
 		vulnTable.setModel(vulnModel);
 		vect = new Vector();
@@ -585,7 +591,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        	Long vid = (Long)vulnModel.getValueAt(row, 6);
 			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
 			        	JSONObject j = (JSONObject)json.get(0);
-			        	ExploitStepsPanel test = new ExploitStepsPanel(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
+			        	VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);
@@ -617,7 +623,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		/*
 		 * Get Verificaiton Queue
 		 */
-		JSONArray vjson = factionApi.executeGet(FuseAPI.VQUEUE);
+		JSONArray vjson = factionApi.executeGet(FactionAPI.VQUEUE);
 		if(vjson != null){
 			
 			for(int i = verModel.getRowCount()-1; i >=0; i--){
@@ -639,7 +645,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		/*
 		 * Get Assessment Queue	
 		 */
-		JSONArray json = factionApi.executeGet(FuseAPI.QUEUE);
+		JSONArray json = factionApi.executeGet(FactionAPI.QUEUE);
 		if(json == null)
 			return;
 		/*
@@ -748,17 +754,5 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	}
 	public String getAppId(){
 		return this.appId;
-	}
-	private void setSeverityComboBoxDefaults(JComboBox jbox, String burpSeverityString, String [] severityStrings){	
-		System.out.println(severityStrings);
-		jbox.setModel(new DefaultComboBoxModel(severityStrings));
-		int sevId = factionApi.getSevMapping(burpSeverityString);
-		String sevStr = factionApi.getSeverityStringFromSeverityId(sevId);
-		for(int j =0; j<jbox.getItemCount(); j++){
-			if(jbox.getItemAt(j).equals(sevStr)){
-				jbox.setSelectedIndex(j);
-				break;
-			}
-		}
 	}
 }

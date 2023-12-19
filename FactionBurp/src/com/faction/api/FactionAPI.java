@@ -1,4 +1,4 @@
-package com.fuse.api;
+package com.org.faction.api;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -15,6 +15,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -24,30 +25,35 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-public class FuseAPI {
+public class FactionAPI {
 	
 	private String SERVER ="";
 	private String TOKEN = "";
 	private Integer refresh;
-	private Map<String, Integer> levels = new HashMap();
+	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap();
 	private int highSev=4;
 	private int medSev=3;
 	private int lowSev=2;
 	private int infoSev=0;
-	public static String ADDVULN="/assessments/addVuln/";
-	public static String ADDDEFAULTVULN="/assessments/addDefaultVuln/";
-	public static String SEARCH_DEFAULT_VULN="/vulnerabilities/default/";
-	public static String QUEUE="/assessments/queue";
-	public static String VQUEUE="/verifications/queue";
-	public static String GETVULN="/assessments/vuln/";
-	public static String GETVULNS="/assessments/vulns/";
-	public static String SETNOTE="/assessments/notes/";
-	public static String HISTORY="/assessments/history/";
-	public static String LEVELS="/vulnerabilities/getrisklevels/";
+	public static final String ADDVULN="/assessments/addVuln/";
+	public static final String ADDDEFAULTVULN="/assessments/addDefaultVuln/";
+	public static final String SEARCH_DEFAULT_VULN="/vulnerabilities/default/";
+	public static final String QUEUE="/assessments/queue";
+	public static final String VQUEUE="/verifications/queue";
+	public static final String GETVULN="/assessments/vuln/";
+	public static final String GETVULNS="/assessments/vulns/";
+	public static final String SETNOTE="/assessments/notes/";
+	public static final String HISTORY="/assessments/history/";
+	public static final String LEVELS="/vulnerabilities/getrisklevels/";
+
+	public static final String BURP_SEV_HIGH="high";
+	public static final String BURP_SEV_MED="medium";
+	public static final String BURP_SEV_LOW="low";
+	public static final String BURP_SEV_INFO="information";
 	
 	
 	
-	public FuseAPI(){
+	public FactionAPI(){
 		getProps();
 		
 	}
@@ -62,14 +68,14 @@ public class FuseAPI {
 	}
 
 	public Integer getSevMapping(String burpSeverityString){
-		switch (burpSeverityString) {
+		switch (burpSeverityString.toLowerCase()) {
 			case "high":
 				return this.highSev;	
-			case "med":
+			case "medium":
 				return this.medSev;
 			case "low":
 				return this.lowSev;
-			case "info":
+			case "information":
 				return this.infoSev;
 			default:
 				return this.infoSev;
@@ -77,16 +83,16 @@ public class FuseAPI {
 	}
 
 	public String [] getSeverityStrings(){
-		this.getLevels();
+		this.getLevelMap();
 		List<String> strings = new ArrayList<>();
-		for(Map.Entry<String,Integer> entry : levels.entrySet()){
+		for(Map.Entry<String,Integer> entry : levelMap.entrySet()){
 			strings.add(entry.getKey());
 		}
 		return strings.toArray(new String[0]);
 	}
 
 	public String getSeverityStringFromSeverityId(Integer sevId){
-		for(Map.Entry<String, Integer> entry : levels.entrySet()){
+		for(Map.Entry<String, Integer> entry : levelMap.entrySet()){
 			if(entry.getValue().equals(sevId)){
 				return entry.getKey();
 			}
@@ -113,13 +119,14 @@ public class FuseAPI {
 			e.printStackTrace();
 		}
 	}
-	public void updateSev(String sevName, int sevId){
+	public void updateSev(String burpSevName, String sevName){
+		Integer sevId = this.levelMap.get(sevName);
 		Properties props = this.getProps();
 		String path = System.getProperty("user.home") + File.separator +"/.faction" + File.separator;
         File f = new File(path + "faction.properties");
 		OutputStream out;
 		try {
-			props.setProperty(sevName, ""+sevId);
+			props.setProperty(burpSevName, ""+sevId);
 			out = new FileOutputStream( f );
 			props.store(out, "Saved by Faction");
 		} catch (FileNotFoundException e) {
@@ -149,10 +156,10 @@ public class FuseAPI {
 	        this.SERVER = props.getProperty("server", "");
 	        this.TOKEN = props.getProperty("token","");
 	        this.refresh = Integer.parseInt(props.getProperty("refresh","20"));
-			this.highSev = Integer.parseInt(props.getProperty("high", "4"));
-			this.medSev = Integer.parseInt(props.getProperty("med", "3"));
-			this.lowSev = Integer.parseInt(props.getProperty("low", "2"));
-			this.infoSev = Integer.parseInt(props.getProperty("info", "0"));
+			this.highSev = Integer.parseInt(props.getProperty(BURP_SEV_HIGH, "4"));
+			this.medSev = Integer.parseInt(props.getProperty(BURP_SEV_MED, "3"));
+			this.lowSev = Integer.parseInt(props.getProperty(BURP_SEV_LOW, "2"));
+			this.infoSev = Integer.parseInt(props.getProperty(BURP_SEV_INFO, "0"));
 			return props;
 	    }
 	    catch ( Exception e ) { is = null; }
@@ -161,16 +168,16 @@ public class FuseAPI {
 	 
 	}
 
-	public Map<String, Integer> getLevels(){
+	public LinkedHashMap<String, Integer> getLevelMap(){
 		JSONArray array = this.executeGet(LEVELS);
 		
 		for(int i=0; i< array.size(); i++){
 			JSONObject obj = (JSONObject)array.get(i);
-			if((""+obj.get("name")).equals(""))
+			if(obj.get("name") == null || (""+obj.get("name")).equals(""))
 				continue;
-			levels.put((""+obj.get("name")).toLowerCase(), ((Long)obj.get("id")).intValue());
+			levelMap.put((""+obj.get("name")).toLowerCase(), ((Long)obj.get("id")).intValue());
 		}
-		return levels;
+		return levelMap;
 
 	}
 
@@ -275,26 +282,6 @@ public class FuseAPI {
 		    }
 		  }
 		}
-	
-	public static int setSeverity2(String severity){
-		
-		if(severity.equals("Informational"))
-			return 0;
-		else if(severity.equals("Information"))
-			return 0;
-		else if(severity.equals("Recommended"))
-			return 1;
-		else if(severity.equals("Low"))
-			return 2;
-		else if(severity.equals("Medium"))
-			return 3;
-		else if(severity.equals("High"))
-			return 4;
-		else if(severity.equals("Critical"))
-			return 5;
-		else 
-			return 0;
-	}
 	
 	public String getCSS(){
 		return SERVER.replace("api", "") + "service/rd_styles.css";

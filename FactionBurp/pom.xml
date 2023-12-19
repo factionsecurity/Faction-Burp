@@ -71,11 +71,6 @@
   		<version>20040117.000000</version>
   	</dependency>
   	<dependency>
-  		<groupId>org.apache.poi</groupId>
-  		<artifactId>poi</artifactId>
-  		<version>3.15-beta1</version>
-  	</dependency>
-  	<dependency>
   		<groupId>com.atlassian.commonmark</groupId>
   		<artifactId>commonmark</artifactId>
   		<version>0.7.1</version>
