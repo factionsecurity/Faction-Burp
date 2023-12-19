@@ -1,6 +1,5 @@
 package com.fuse.gui;
 
-import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 import java.awt.GridBagLayout;
@@ -12,32 +11,30 @@ import javax.swing.JPanel;
 import javax.swing.border.TitledBorder;
 
 import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import com.fuse.api.FuseAPI;
 import com.sun.jersey.core.util.Base64;
-import com.sun.jersey.impl.ApiMessages;
 
 import burp.IBurpExtenderCallbacks;
 import burp.IContextMenuInvocation;
 import burp.IHttpRequestResponse;
 import burp.IScanIssue;
+import burp.api.montoya.http.message.HttpRequestResponse;
+import burp.api.montoya.scanner.audit.issues.AuditIssue;
+import burp.api.montoya.ui.contextmenu.AuditIssueContextMenuEvent;
+import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
+import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse;
+import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse.SelectionContext;
+
 //import flex.messaging.util.URLEncoder;
 import java.net.URLEncoder;
 
-import java.awt.FlowLayout;
 import javax.swing.JEditorPane;
 import javax.swing.JCheckBox;
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
-import javax.swing.GroupLayout;
-import javax.swing.GroupLayout.Alignment;
-import javax.swing.JTextArea;
 import java.awt.Component;
 
-import javax.print.attribute.standard.Severity;
 import javax.swing.Box;
 import java.awt.Dimension;
 import javax.swing.JTextField;
@@ -45,19 +42,18 @@ import javax.swing.border.LineBorder;
 import java.awt.Color;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
-import java.sql.Savepoint;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.awt.event.ActionEvent;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.border.EtchedBorder;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.UnsupportedEncodingException;
-import java.awt.Toolkit;
 import javax.swing.JScrollPane;
 
 import org.commonmark.node.*;
@@ -71,27 +67,26 @@ public class SendToFaction {
 	private FuseAPI api = new FuseAPI();
 	private JSONArray asmts;
 	private JSONArray vulns;
-	private IBurpExtenderCallbacks cb;
 	private JCheckBox optReq;
 	private JCheckBox optCookies;
 	private JCheckBox optResp;
-	private JCheckBox optFeed;
 	private JEditorPane message_1;
-	private IContextMenuInvocation inv;
 	private JComboBox vulnList;
 	private JButton btnSave;
 	private boolean isScanIssue=false;
-	private boolean newVuln = true;
-	private HashMap<String,List<IScanIssue>>scanIssues;
+	private boolean isNew = true;
+	private Object event;
+	private HashMap<String,List<AuditIssue>>scanIssues;
 	private JTextField vulnSearch;
 	private JComboBox defaultVulns;
 	private HashMap<String, JSONObject> _defaultVulns = new HashMap<String,JSONObject>();
-	private String APPID;
+	private String appId;
 	private JComboBox severity;
 	private JCheckBox useSelected;
 	private HashMap<String, Integer> levels = new HashMap();
 	private JScrollPane scrollPane;
 	private JPanel panel_1;
+	private boolean isScan;
 	
 	
 
@@ -99,22 +94,24 @@ public class SendToFaction {
 	/**
 	 * Create the application.
 	 */
-	public SendToFaction(IBurpExtenderCallbacks cb, IContextMenuInvocation inv, boolean newVuln, String appid) {
-		this.cb = cb;
-		this.inv = inv;
-		this.newVuln=newVuln;
-		this.APPID = appid;
-		if(inv.CONTEXT_SCANNER_RESULTS == inv.getInvocationContext()){
-			this.isScanIssue = true;
-			IScanIssue scans [] = inv.getSelectedIssues();
-			scanIssues = new HashMap();
-			for(IScanIssue scan :scans){
-				if(scanIssues.containsKey(scan.getIssueName()))
-						scanIssues.get(scan.getIssueName()).add(scan);
+	public SendToFaction(Object event, boolean isScan, boolean isNew, String appId) {
+		this.isNew = isNew;
+		this.appId = appId;
+		this.event = event;
+		this.isScanIssue = isScan;
+
+		if(isScanIssue){
+			List<AuditIssue> selectedIssues = ((AuditIssueContextMenuEvent) event).selectedIssues();
+
+			
+			scanIssues = new HashMap<>();
+			for(AuditIssue issue :selectedIssues){
+				if(scanIssues.containsKey(issue.name()))
+						scanIssues.get(issue.name()).add(issue);
 				else{
-					List<IScanIssue> newList = new ArrayList<IScanIssue>();
-					newList.add(scan);
-					scanIssues.put(scan.getIssueName(), newList);
+					List<AuditIssue> newList = new ArrayList<>();
+					newList.add(issue);
+					scanIssues.put(issue.name(), newList);
 				}
 			}
 		}
@@ -144,7 +141,7 @@ public class SendToFaction {
 		gbc_rigidArea_2.gridx = 2;
 		gbc_rigidArea_2.gridy = 0;
 		frame.getContentPane().add(rigidArea_2, gbc_rigidArea_2);
-		if(newVuln){
+		if(this.isNew){
 			JLabel lblName = new JLabel("Name:");
 			GridBagConstraints gbc_lblName = new GridBagConstraints();
 			gbc_lblName.anchor = GridBagConstraints.EAST;
@@ -154,9 +151,9 @@ public class SendToFaction {
 			frame.getContentPane().add(lblName, gbc_lblName);
 			
 			vulnName = new JTextField();
-			if(inv.getSelectedIssues() != null){
-				if(inv.getSelectedIssues().length == 1)
-					vulnName.setText(inv.getSelectedIssues()[0].getIssueName());
+			if(scanIssues != null){
+				if(scanIssues.size() == 1)
+					vulnName.setText(scanIssues.keySet().iterator().next());
 				else
 					vulnName.setText("Multiple Issues Selected");
 				
@@ -181,7 +178,7 @@ public class SendToFaction {
 		JComboBox assessmentList = new JComboBox();
 		assessmentList.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				if(!newVuln){
+				if(!isNew){
 					int index = assessmentList.getSelectedIndex();
 					JSONObject obj = (JSONObject)asmts.get(index);
 					vulns = api.executeGet(FuseAPI.GETVULNS + obj.get("Id"));
@@ -209,7 +206,7 @@ public class SendToFaction {
 		gbc_assessmentList.gridy = 2;
 		frame.getContentPane().add(assessmentList, gbc_assessmentList);
 		
-		if(!newVuln){
+		if(!this.isNew){
 			JLabel lblVulnerability = new JLabel("Vulnerability:");
 			GridBagConstraints gbc_lblVulnerability = new GridBagConstraints();
 			gbc_lblVulnerability.anchor = GridBagConstraints.EAST;
@@ -243,7 +240,7 @@ public class SendToFaction {
 		gbl_searchPanel.rowWeights = new double[]{0.0, 0.0, Double.MIN_VALUE};
 		searchPanel.setLayout(gbl_searchPanel);
 		
-		if(!newVuln || isScanItems(inv)){
+		if(!this.isNew || this.isScanIssue){
 			searchPanel.setVisible(false);
 		}
 		
@@ -269,7 +266,6 @@ public class SendToFaction {
 						JSONObject obj = (JSONObject)jarray.get(i);
 						defaultVulns.addItem(""+obj.get("Name"));
 						_defaultVulns.put(""+obj.get("Name"), obj);
-						//severity.setSelectedIndex(((Long)obj.get("Overall")).intValue());
 						int sev = ((Long)obj.get("Overall")).intValue();
 						String sevStr = "";
 						for(String key : levels.keySet()){
@@ -381,15 +377,6 @@ public class SendToFaction {
 		gbc_optCookies.gridy = 0;
 		panel.add(optCookies, gbc_optCookies);
 		
-		optFeed = new JCheckBox("Show on Feed");
-		optFeed.setToolTipText("This will also post the issue to the Live Feed so that everyone working on the assessment can see what you have found.");
-		GridBagConstraints gbc_optFeed = new GridBagConstraints();
-		gbc_optFeed.anchor = GridBagConstraints.WEST;
-		gbc_optFeed.insets = new Insets(0, 0, 5, 5);
-		gbc_optFeed.gridx = 3;
-		gbc_optFeed.gridy = 0;
-		panel.add(optFeed, gbc_optFeed);
-		
 		optResp = new JCheckBox("Response");
 		optResp.setToolTipText("Sent the Response to Faction. If the Response is empty then only the Vulnerability will be created and exploit steps will not be added.");
 		optResp.setSelected(true);
@@ -418,8 +405,8 @@ public class SendToFaction {
 			JSONObject obj = (JSONObject)array.get(i);
 			if((""+obj.get("name")).equals(""))
 				continue;
-			levels.put(""+obj.get("name"), ((Long)obj.get("id")).intValue());
-			levelStr.add(""+obj.get("name"));
+			levels.put((""+obj.get("name")).toLowerCase(), ((Long)obj.get("id")).intValue());
+			levelStr.add((""+obj.get("name")).toLowerCase());
 		}
 		//new String[] {"Informational", "Recommended", "Low", "Medium", "High", "Critical"}
 		severity.setModel(new DefaultComboBoxModel(levelStr.toArray()));
@@ -476,22 +463,33 @@ public class SendToFaction {
 			public void actionPerformed(ActionEvent arg0) {
 				String msg = message_1.getText();
 				
-				if(newVuln){
-					if(inv.getSelectedIssues() !=null){ // we are using scan issues
-						
-						for(int scanIndex = 0; scanIndex < inv.getSelectedIssues().length; scanIndex++){
-							IScanIssue issue = inv.getSelectedIssues()[scanIndex];
-							String name = issue.getIssueName();
-							int index = assessmentList.getSelectedIndex();
-							JSONObject obj = (JSONObject)asmts.get(index);
-							String feed="false";
-							if(optFeed.isSelected())
-								feed = "true";
-							String b64 = new String(Base64.encode(createScanMessage(scanIndex)));
+				if(isNew){
+					if(isScanIssue){ // we are using scan issues
+						int index = assessmentList.getSelectedIndex();
+						JSONObject obj = (JSONObject)asmts.get(index);
+						Iterator entries = scanIssues.keySet().iterator();
+						while(entries.hasNext()){
+							String scanIssueKey = (String) entries.next();
+							List<AuditIssue> issues = scanIssues.get(scanIssueKey);
+							AuditIssue baseIssue = issues.get(0);
+							String b64Description = new String(Base64.encode(baseIssue.definition().background()));
+							String b64Recommendation = new String(Base64.encode(""+baseIssue.definition().remediation()));
+							String details = "<b><u>Affected URLs:</u></b><br/>\n<ul>\n";
+							for(AuditIssue issue : issues){
+								details += "<li>" + issue.baseUrl() + "</li>\n";
+							}
+							details += "</ul>\n<br/>";
+							details += createScanMessage(baseIssue);
+							String b64Details = new String(Base64.encode(details));
 							try{
-								String postData = "name="+ URLEncoder.encode(name, "UTF-8") + "&feed=" + feed + "&message=" +URLEncoder.encode(b64, "UTF-8");
-								//postData+="&severity=" + FuseAPI.setSeverity(""+inv.getSelectedIssues()[scanIndex].getSeverity());
-								postData+="&severity=" + levels.get(inv.getSelectedIssues()[scanIndex].getSeverity());
+								String postData = "name="+ URLEncoder.encode(baseIssue.name(), "UTF-8") 
+								+ "&feed=false"
+								+ "&details=" +URLEncoder.encode(b64Details, "UTF-8")
+								+ "&description=" + URLEncoder.encode(b64Description, "UTF-8")
+								+ "&recommendation="+ URLEncoder.encode(b64Recommendation, "UTF-8")
+								+ "&severity=" + levels.get(baseIssue.severity().toString().toLowerCase());
+								System.out.println(baseIssue.detail());
+								System.out.println(baseIssue.remediation());
 								api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
 							} catch (UnsupportedEncodingException ex){
 								System.out.println(ex.getMessage());
@@ -499,35 +497,33 @@ public class SendToFaction {
 							
 						}
 					}else{ // adding a new vuln
-						String b64 = new String(Base64.encode(createMessage()));
+						String b64 = new String(Base64.encode(createMessage((ContextMenuEvent)event)));
 						String name = vulnName.getText();
 						int index = assessmentList.getSelectedIndex();
 						JSONObject obj = (JSONObject)asmts.get(index);
-						String feed="false";
-						if(optFeed.isSelected())
-							feed = "true";
-						String postData = "name="+ URLEncoder.encode(name) + "&feed=" + feed + "&message=" +URLEncoder.encode(b64);
-						//postData+="&severity=" + FuseAPI.setSeverity(""+severity.getSelectedItem());
-						postData+="&severity=" + levels.get(""+severity.getSelectedItem());
-						if(_defaultVulns.size() > 0){
-							JSONObject vobj = _defaultVulns.get(defaultVulns.getSelectedItem());
-							api.executePost(FuseAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
-						}else{
-							api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+						try{
+							String postData = "name=" + URLEncoder.encode(name, "UTF-8") 
+							+ "&feed=false&details=" + URLEncoder.encode(b64, "UTF-8");
+							postData+="&severity=" + levels.get(""+severity.getSelectedItem());
+							if(_defaultVulns.size() > 0){
+								JSONObject vobj = _defaultVulns.get(defaultVulns.getSelectedItem());
+								api.executePost(FuseAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
+							}else{
+								api.executePost(FuseAPI.ADDVULN + obj.get("Id"), postData);
+							}
+						} catch (UnsupportedEncodingException ex){
+							System.out.println(ex.getMessage());
 						}
+
 						
 					}
 				}else{  // adding an existing vuln
-					String b64 = new String(Base64.encode(createMessage()));
+					String b64 = new String(Base64.encode(createMessage((ContextMenuEvent)event)));
 					int aindex = assessmentList.getSelectedIndex();
 					int vindex  = vulnList.getSelectedIndex();
 					JSONObject aObj = (JSONObject)asmts.get(aindex);
 					JSONObject vObj = (JSONObject)vulns.get(vindex);
-					String feed="false";
-					if(optFeed.isSelected())
-						feed = "true";
-					String postData = "feed=" + feed + "&message=" +URLEncoder.encode(b64);
-					//postData+="&severity=" + FuseAPI.setSeverity(""+severity.getSelectedItem());
+					String postData = "feed=false&details=" +URLEncoder.encode(b64);
 					postData+="&severity=" + levels.get(""+severity.getSelectedItem());
 					api.executePost(FuseAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
 					
@@ -554,85 +550,51 @@ public class SendToFaction {
 		for(int i=0; i< asmts.size(); i++){
 			JSONObject obj = (JSONObject)asmts.get(i);
 			assessmentList.addItem(obj.get("AppId") + " " + obj.get("Name"));
-			if(this.APPID != null && (""+obj.get("AppId")).equals(this.APPID) )
+			if(this.appId != null && (""+obj.get("AppId")).equals(this.appId) )
 				assessmentList.setSelectedIndex(i);
 		}
 		
 		
 	}
 	
-	private String createScanMessage(int scanIndex){
+	private String createScanMessage(AuditIssue issue){
 		String message = this.getMessage().getText();
 		
 		message = message.replaceAll("\r\n", "<br/>").replaceAll("\n", "<br/>");
 		message +="<br/>";
-		String issueDetail = inv.getSelectedIssues()[scanIndex].getIssueDetail();
-		if(issueDetail != null)
-			message += issueDetail;
-		
-		for( IHttpRequestResponse reqres : inv.getSelectedIssues()[scanIndex].getHttpMessages()){
-			message +="";
+		HttpRequestResponse reqres = issue.requestResponses().get(0);
 			
-			if(this.optReq.isSelected()){
-				
-				if(reqres.getRequest() != null && !(new String(reqres.getRequest()).trim().equals(""))){
-					String req = new String(reqres.getRequest());
-			    	message += "";
-					//message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-					message += "<b>Request: </b>";
-					message += "<pre class='code'>";
-					if(this.optCookies.isSelected()){
-						int start = req.indexOf("Cookie: ");
-						if(start != -1){
-							start = start +  "Cookie: ".length()-1;
-							int end = req.indexOf("\n", start);
-							String begin = req.substring(0,start);
-							String finish = req.substring(end);
-							req = begin + "[ ...snip... ]" + finish;
-						}
-					}
-					String data = StringEscapeUtils.escapeHtml(req);
-					data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-					message += data;
-					message += "</pre>";
-					//message += "</div>";
-			    }
+		if(this.optReq.isSelected() && reqres.request() != null){
+			String req = reqres.request().toString();
+			message += "<b>Request: </b>";
+			message += "<pre class='code'>";
+			if(this.optCookies.isSelected()){
+				req = req.replaceAll("Cookie: .*\n", "Cookie: [ ...snip... ]\n");
 			}
-			
-			if(this.optResp.isSelected()){
-				if(reqres.getResponse() != null && !(new String(reqres.getResponse()).trim().equals(""))){
-					String resp = new String(reqres.getResponse());
-					message +="";
-					//message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-					message += "<b>Response: </b>";
-					message += "<pre class='code'>";
-					if(this.optCookies.isSelected()){
-						int start = resp.indexOf("Set-Cookie: ");
-						if(start != -1){
-							start = start + "Set-Cookie: ".length()-1;
-							int end = resp.indexOf("\n", start);
-							String begin = resp.substring(0,start);
-							String finish = resp.substring(end);
-							resp = begin + "[ ...snip... ]" + finish;
-						}
-					}
-					String data = StringEscapeUtils.escapeHtml(resp);
-					data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-					data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-					message += data;
-					message += "</pre>";
-					//message += "</div>";
-				}
+			String data = StringEscapeUtils.escapeHtml(req);
+			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+			data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+			message += data;
+			message += "</pre>";
+		}
+		if(this.optResp.isSelected() && reqres.hasResponse()){
+			String resp = reqres.response().toString();
+			message += "<b>Response: </b>";
+			message += "<pre class='code'>";
+			if(this.optCookies.isSelected()){
+				resp = resp.replaceAll("Set-Cookie: .*\n", "Set-Cookie: [ ...snip... ]\n");
 			}
-				
-			
+			String data = StringEscapeUtils.escapeHtml(resp);
+			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+			data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+			message += data;
+			message += "</pre>";
 		}
 		return message;
 		
 		
 	}
-	private String createMessage(){
+	private String createMessage(ContextMenuEvent event){
 		String message = this.getMessage().getText();
 		Parser parser = Parser.builder().build();
 		Node document = parser.parse(message);
@@ -641,100 +603,73 @@ public class SendToFaction {
 		message = message.replaceAll("<code>", "<pre>").replaceAll("</code>", "</pre>");
 		message = message.replaceAll("</p>", "<br/>");
 		message +="<br>";
-		if(this.optReq.isSelected()){
-			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
-			
-			if(req.getRequest() != null){
-				String tmp = "";
-				if(useSelected.isSelected() && inv.getSelectionBounds() != null && 
-						(inv.getInvocationContext() == inv.CONTEXT_MESSAGE_EDITOR_REQUEST ||inv.getInvocationContext() == inv.CONTEXT_MESSAGE_VIEWER_REQUEST)){
-					int xy [] = inv.getSelectionBounds();
-					byte [] selectedText = Arrays.copyOfRange(req.getRequest(), xy[0], xy[1]);
-					
-					tmp = new String (selectedText);
-					if(xy[0] != 0)
-						tmp = "[ ...snip... ]\r\n" + tmp + "\r\n[ ...snip... ]\r\n";
-					else
-						tmp = tmp + "\r\n[ ...snip... ]\r\n";
-					
-				}else
-					tmp = new String(req.getRequest());
-				
-				if(tmp == null || tmp.equals(""))
-					tmp = new String(req.getRequest());
-				
-				message +="";
-				//message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-				message += "<b>Request: </b>";
-				message += "<pre class='code'>";
-				
-				if(this.optCookies.isSelected()){
-					int start = tmp.indexOf("Cookie: ");
-					if(start != -1){
-						start = start +  "Cookie: ".length()-1;
-						int end = tmp.indexOf("\r", start);
-						String begin = tmp.substring(0,start);
-						String finish = tmp.substring(end);
-						tmp = begin + "[ ...snip... ]" + finish;
+		StringBuilder _message = new StringBuilder(message);
+		Optional<MessageEditorHttpRequestResponse>  req = event.messageEditorRequestResponse();
+		req.ifPresent( r -> {
+			StringBuilder request = new StringBuilder("");
+			if(this.optReq.isSelected()){
+				request.append(r.requestResponse().request().toString());
+			}
+			StringBuilder response = new StringBuilder("");
+			if( this.optResp.isSelected()){
+				response.append(r.requestResponse().response().toString());
+			}
+			r.selectionOffsets().ifPresent( range ->{
+				int start = range.startIndexInclusive();
+				int end = range.endIndexExclusive();
+				if(r.selectionContext() == SelectionContext.REQUEST && this.optReq.isSelected()){
+					request.setLength(0);
+					request.append(new String(Arrays.copyOfRange(r.requestResponse().request().toByteArray().getBytes(),start,end)));
+					if(start != 0){
+						request.insert(0,"[ ...snip... ]\r\n");
+						request.append("\r\n[ ...snip... ]");
+					}else{
+						request.append("\r\n[ ...snip... ]");
+					}
+				}else if (this.optReq.isSelected()){
+					response.setLength(0);
+					response.append(new String(Arrays.copyOfRange(r.requestResponse().response().toByteArray().getBytes(),start,end)));
+					if(start != 0){
+						response.insert(0,"[ ...snip... ]\r\n");
+						response.append("\r\n[ ...snip... ]");
+					}else{
+						response.append("\r\n[ ...snip... ]");
 					}
 				}
-					
-				String data = StringEscapeUtils.escapeHtml(tmp);
-				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-				
-				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-				message += data;
-				message += "</pre>";
-				//message += "</div>";
-			}
-		}
-		if(this.optResp.isSelected()){
-			IHttpRequestResponse  req = inv.getSelectedMessages()[0];
 
-			
-			if(req.getResponse() != null && !(new String(req.getResponse()).trim().equals(""))){
-				String tmp = new String(req.getResponse());
-				if(useSelected.isSelected() && inv.getSelectionBounds() != null && 
-						(inv.getInvocationContext() == inv.CONTEXT_MESSAGE_EDITOR_RESPONSE || inv.getInvocationContext() == inv.CONTEXT_MESSAGE_VIEWER_RESPONSE)){
-					int xy [] = inv.getSelectionBounds();
-					byte [] selectedText = Arrays.copyOfRange(req.getResponse(), xy[0], xy[1]);
-					tmp = new String (selectedText);
-					if(xy[0] != 0)
-						tmp = "[ ...snip... ]\r\n" + tmp + "\r\n[ ...snip... ]\r\n";
-					else
-						tmp = tmp + "\r\n[ ...snip... ]\r\n";
-				}else
-					tmp = new String(req.getResponse());
-				
-				if(tmp == null || tmp.equals(""))
-					tmp = new String(req.getResponse());
-				
-				message +="";
-				//message +="<div class='code' style='background:#eee;border:1px solid #ccc;padding:5px 10px;'>";
-				message += "<b>Response: </b>";
-				message += "<pre class='code'>";
-				
-				if(this.optCookies.isSelected()){
-					int start = tmp.indexOf("Set-Cookie: ");
-					if(start != -1){
-						start = start + "Set-Cookie: ".length()-1;
-						int end = tmp.indexOf("\r", start);
-						String begin = tmp.substring(0,start);
-						String finish = tmp.substring(end);
-						tmp = begin + "[ ...snip... ]" + finish;
-					}
-				}
-				
-				String data = StringEscapeUtils.escapeHtml(tmp);
-				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
-				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
-				message += data;
-				message += "</pre>";
-				//message += "</div>";
+
+			});
+			if(this.optCookies.isSelected()){
+				String tmpRequest = request.toString();
+				tmpRequest = tmpRequest.replaceAll("Cookie: .*", "Cookie: [ ...snip... ]");
+				request.setLength(0);
+				request.append(tmpRequest);
+				String tmpResponse = response.toString();
+				tmpResponse = tmpResponse.replaceAll("Set-Cookie: .*", "Set-Cookie: [ ...snip... ]");
+				response.setLength(0);
+				response.append(tmpResponse);
 			}
-			
-		}
-		return message;
+				
+			String data = StringEscapeUtils.escapeHtml(request.toString());
+			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+			if(this.optReq.isSelected()){
+				_message.append("<b>Request: </b>");
+				_message.append("<pre class='code'>");
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+				_message.append(data);
+				_message.append("</pre>");
+			}
+			if(this.optResp.isSelected()){
+				data = StringEscapeUtils.escapeHtml(response.toString());
+				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
+				_message.append("<b>Response: </b>");
+				_message.append("<pre class='code'>");
+				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
+				_message.append(data);
+				_message.append("</pre>");
+			}
+		});
+		return _message.toString();
 	}
 	
 
@@ -746,9 +681,6 @@ public class SendToFaction {
 	}
 	public JCheckBox getOptResp() {
 		return optResp;
-	}
-	public JCheckBox getOptViewState() {
-		return optFeed;
 	}
 	public JEditorPane getMessage() {
 		return message_1;

@@ -30,13 +30,5 @@ public class VTTableModel extends DefaultTableModel{
 	public String getColumnName(int col) {
 	    return columnNames[col];
 	}
-	
-
-
-	
-	/*public Class getColumnClass(int c) {
-	    return getValueAt(0, c).getClass();
-	}*/
-	
 
 }

@@ -13,9 +13,14 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -24,6 +29,11 @@ public class FuseAPI {
 	private String SERVER ="";
 	private String TOKEN = "";
 	private Integer refresh;
+	private Map<String, Integer> levels = new HashMap();
+	private int highSev=4;
+	private int medSev=3;
+	private int lowSev=2;
+	private int infoSev=0;
 	public static String ADDVULN="/assessments/addVuln/";
 	public static String ADDDEFAULTVULN="/assessments/addDefaultVuln/";
 	public static String SEARCH_DEFAULT_VULN="/vulnerabilities/default/";
@@ -50,14 +60,47 @@ public class FuseAPI {
 	public int getRefresh(){
 		return refresh;
 	}
-	public void updateProps(String Server, String Token, String Refresh){
-		this.SERVER = Server;
-		this.TOKEN = Token;
-		this.refresh = Integer.parseInt(Refresh);
-		Properties props = new Properties();
-		props.setProperty("server", Server);
-		props.setProperty("token", Token);
-		props.setProperty("refresh", Refresh);
+
+	public Integer getSevMapping(String burpSeverityString){
+		switch (burpSeverityString) {
+			case "high":
+				return this.highSev;	
+			case "med":
+				return this.medSev;
+			case "low":
+				return this.lowSev;
+			case "info":
+				return this.infoSev;
+			default:
+				return this.infoSev;
+		}
+	}
+
+	public String [] getSeverityStrings(){
+		this.getLevels();
+		List<String> strings = new ArrayList<>();
+		for(Map.Entry<String,Integer> entry : levels.entrySet()){
+			strings.add(entry.getKey());
+		}
+		return strings.toArray(new String[0]);
+	}
+
+	public String getSeverityStringFromSeverityId(Integer sevId){
+		for(Map.Entry<String, Integer> entry : levels.entrySet()){
+			if(entry.getValue().equals(sevId)){
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+	public void updateProps(String server, String token, String refresh){
+		this.SERVER = server;
+		this.TOKEN = token;
+		this.refresh = Integer.parseInt(refresh);
+		Properties props = this.getProps();
+		props.setProperty("server", server);
+		props.setProperty("token", token);
+		props.setProperty("refresh", refresh);
 		String path = System.getProperty("user.home") + File.separator +"/.faction" + File.separator;
         File f = new File(path + "faction.properties");
 		OutputStream out;
@@ -65,15 +108,28 @@ public class FuseAPI {
 			out = new FileOutputStream( f );
 			props.store(out, "Saved by Faction");
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	public void updateSev(String sevName, int sevId){
+		Properties props = this.getProps();
+		String path = System.getProperty("user.home") + File.separator +"/.faction" + File.separator;
+        File f = new File(path + "faction.properties");
+		OutputStream out;
+		try {
+			props.setProperty(sevName, ""+sevId);
+			out = new FileOutputStream( f );
+			props.store(out, "Saved by Faction");
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public void getProps(){
+	public Properties getProps(){
 		Properties props = new Properties();
 	    InputStream is = null;
 	 
@@ -93,12 +149,31 @@ public class FuseAPI {
 	        this.SERVER = props.getProperty("server", "");
 	        this.TOKEN = props.getProperty("token","");
 	        this.refresh = Integer.parseInt(props.getProperty("refresh","20"));
-	        
+			this.highSev = Integer.parseInt(props.getProperty("high", "4"));
+			this.medSev = Integer.parseInt(props.getProperty("med", "3"));
+			this.lowSev = Integer.parseInt(props.getProperty("low", "2"));
+			this.infoSev = Integer.parseInt(props.getProperty("info", "0"));
+			return props;
 	    }
 	    catch ( Exception e ) { is = null; }
+		return null;
 	 
 	 
 	}
+
+	public Map<String, Integer> getLevels(){
+		JSONArray array = this.executeGet(LEVELS);
+		
+		for(int i=0; i< array.size(); i++){
+			JSONObject obj = (JSONObject)array.get(i);
+			if((""+obj.get("name")).equals(""))
+				continue;
+			levels.put((""+obj.get("name")).toLowerCase(), ((Long)obj.get("id")).intValue());
+		}
+		return levels;
+
+	}
+
 	public JSONArray executePost(String targetURL, String postData){
 		HttpURLConnection connection = null;  
 		  try {

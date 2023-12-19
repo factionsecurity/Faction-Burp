@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 
 import java.awt.GridLayout;
 
@@ -44,6 +45,7 @@ import com.fuse.api.FuseAPI;
 
 import burp.IBurpExtenderCallbacks;
 import burp.IExtensionStateListener;
+import burp.api.montoya.MontoyaApi;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -83,6 +85,7 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.Box;
+import javax.swing.DefaultComboBoxModel;
 
 import java.awt.Dimension;
 import java.awt.Font;
@@ -106,7 +109,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	private JEditorPane notesTxt;
 	private JEditorPane notes2Txt;
 	private List<String> Notes = new ArrayList<String>();
-	private FuseAPI api = new FuseAPI();
+	private FuseAPI factionApi = new FuseAPI();
 	private JTextField refreshRate;
 	private Timer refreshTimer;
 	private String appId = "";
@@ -120,12 +123,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	/**
 	 * Create the frame.
 	 */
-	public FactionGUI(IBurpExtenderCallbacks cb) {
-		cb.registerExtensionStateListener(this);
-		
+	public FactionGUI(MontoyaApi api, IBurpExtenderCallbacks legacyCallback) {
 
-		//com.fuse.data.Handler.install();
-		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 1099, 749);
 		//contentPane = new JPanel();
 		contentPane = this;
@@ -135,6 +134,113 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		contentPane.add(tabbedPane);
+		
+		JPanel ConfigPanel = new JPanel();
+		tabbedPane.addTab("Config", null, ConfigPanel, null);
+		ConfigPanel.setLayout(null);
+		
+		JLabel lblServer = new JLabel("Server:");
+		lblServer.setBounds(32, 54, 60, 15);
+		ConfigPanel.add(lblServer);
+		
+		JLabel lblToken = new JLabel("Token:");
+		lblToken.setBounds(32, 97, 60, 15);
+		ConfigPanel.add(lblToken);
+		
+		serverTxt = new JTextField();
+		serverTxt.setBounds(88, 48, 336, 27);
+		ConfigPanel.add(serverTxt);
+		serverTxt.setColumns(10);
+		
+		tokenTxt = new JPasswordField();
+		tokenTxt.setBounds(88, 91, 336, 27);
+		ConfigPanel.add(tokenTxt);
+		tokenTxt.setColumns(10);
+		
+		JButton updateBtn = new JButton("Update");
+		updateBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
+				try{
+				refreshTimer.cancel();
+				}catch(Exception ex){}
+				refreshTimer = new Timer();
+				refreshTimer.scheduleAtFixedRate(new TimerTask(){
+					@Override
+					public void run() {
+						updateAPI();
+						
+					}}, 0, 1000 * factionApi.getRefresh());
+				
+
+			}
+		});
+		updateBtn.setBounds(305, 129, 117, 25);
+		ConfigPanel.add(updateBtn);
+		
+		serverTxt.setText(factionApi.getServer());
+		tokenTxt.setText(factionApi.getToken());
+		
+		
+		
+				
+				
+				JLabel lblRefresh = new JLabel("Refresh:");
+				lblRefresh.setBounds(32, 134, 46, 25);
+				ConfigPanel.add(lblRefresh);
+				
+				refreshRate = new JTextField();
+				refreshRate.setText("20");
+				refreshRate.setBounds(88, 129, 46, 25);
+				ConfigPanel.add(refreshRate);
+				refreshRate.setColumns(10);
+				refreshRate.setText("" + factionApi.getRefresh());
+				
+				JLabel lblSecs = new JLabel("Seconds");
+				lblSecs.setBounds(144, 134, 100, 20);
+				ConfigPanel.add(lblSecs);
+				
+				JLabel lblNewLabel = new JLabel("Scanner Severity Mapping");
+				lblNewLabel.setFont(new Font("Lucida Grande", Font.BOLD, 15));
+				lblNewLabel.setBounds(31, 181, 213, 16);
+				ConfigPanel.add(lblNewLabel);
+				
+				JLabel lblNewLabel_1 = new JLabel("HIGH");
+				lblNewLabel_1.setBounds(140, 213, 100, 16);
+				ConfigPanel.add(lblNewLabel_1);
+				
+				JLabel lblNewLabel_2 = new JLabel("MEDIUM");
+				lblNewLabel_2.setBounds(140, 245, 103, 16);
+				ConfigPanel.add(lblNewLabel_2);
+				
+				JLabel lblNewLabel_3 = new JLabel("LOW");
+				lblNewLabel_3.setBounds(140, 277, 102, 16);
+				ConfigPanel.add(lblNewLabel_3);
+				
+				JLabel lblNewLabel_4 = new JLabel("INFORMATION");
+				lblNewLabel_4.setBounds(140, 309, 103, 16);
+				ConfigPanel.add(lblNewLabel_4);
+
+				String [] severityStrings = factionApi.getSeverityStrings();
+				JComboBox sevMapMed = new JComboBox();
+				setSeverityComboBoxDefaults(sevMapMed,"med",severityStrings);
+				sevMapMed.setBounds(32, 241, 104, 27);
+				ConfigPanel.add(sevMapMed);
+				
+				JComboBox sevMapHigh = new JComboBox();
+				setSeverityComboBoxDefaults(sevMapHigh,"high",severityStrings);
+				sevMapHigh.setBounds(32, 209, 104, 27);
+				ConfigPanel.add(sevMapHigh);
+				
+				JComboBox sevMapLow = new JComboBox();
+				setSeverityComboBoxDefaults(sevMapLow,"low",severityStrings);
+				sevMapLow.setBounds(32, 273, 104, 27);
+				ConfigPanel.add(sevMapLow);
+				
+				JComboBox sevMapInfo = new JComboBox();
+				setSeverityComboBoxDefaults(sevMapInfo,"info",severityStrings);
+				sevMapInfo.setBounds(32, 305, 104, 27);
+				ConfigPanel.add(sevMapInfo);
 		
 		JSplitPane combinedQueue = new JSplitPane();
 		combinedQueue.setResizeWeight(0.5);
@@ -175,7 +281,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        	int row = verTable.convertRowIndexToModel(r);
 			        	
 			        	Long vid = (Long)verModel.getValueAt(row, 4);
-			        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
+			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
 			        	JSONObject j = (JSONObject)json.get(0);
 			        	JSONArray s = (JSONArray)j.get("Steps");
 			        	List<String> Images = new ArrayList<String>();
@@ -191,7 +297,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        		
 			        	}
 			        	//com.fuse.data.Handler.install();
-			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), Steps, Images, ImageIds, cb);
+			        	ExploitStepsPanel test = new ExploitStepsPanel(factionApi,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), (String)j.get("Details"), legacyCallback);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);
@@ -278,7 +384,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        		notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
 			        	JSONArray json = new JSONArray();
 						try {
-							json = api.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+							json = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
 						} catch (UnsupportedEncodingException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -477,24 +583,9 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        	int r = vulnTable.getSelectedRow();
 			        	int row = vulnTable.convertRowIndexToModel(r);
 			        	Long vid = (Long)vulnModel.getValueAt(row, 6);
-			        	JSONArray json = api.executeGet("/assessments/vuln/" + vid);
+			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
 			        	JSONObject j = (JSONObject)json.get(0);
-			        	JSONArray s = (JSONArray)j.get("Steps");
-			        	List<String> Images = new ArrayList<String>();
-			        	List<String> Steps = new ArrayList<String>();
-			        	List<Integer>ImageIds = new ArrayList<Integer>();
-			        	for(int i=0; i< s.size(); i++){
-			        		JSONObject jObj = (JSONObject)s.get(i);
-			        		Steps.add((String)jObj.get("Description"));
-			        		Images.add((String)jObj.get("ScreenShot"));
-			        		if(jObj.get("ImageId")!= null)
-			        			ImageIds.add(((Long)jObj.get("ImageId")).intValue());
-			        		
-			        		
-			        	}
-						
-			        	//com.fuse.data.Handler.install();
-			        	ExploitStepsPanel test = new ExploitStepsPanel(api,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(), Steps, Images, ImageIds, cb);
+			        	ExploitStepsPanel test = new ExploitStepsPanel(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);
@@ -506,67 +597,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		scrollPane_1.setViewportView(vulnTable);
 		
-		JPanel ConfigPanel = new JPanel();
-		tabbedPane.addTab("Config", null, ConfigPanel, null);
-		ConfigPanel.setLayout(null);
 		
-		JLabel lblServer = new JLabel("Server:");
-		lblServer.setBounds(32, 54, 60, 15);
-		ConfigPanel.add(lblServer);
-		
-		JLabel lblToken = new JLabel("Token:");
-		lblToken.setBounds(32, 97, 60, 15);
-		ConfigPanel.add(lblToken);
-		
-		serverTxt = new JTextField();
-		serverTxt.setBounds(88, 48, 336, 27);
-		ConfigPanel.add(serverTxt);
-		serverTxt.setColumns(10);
-		
-		tokenTxt = new JPasswordField();
-		tokenTxt.setBounds(88, 91, 336, 27);
-		ConfigPanel.add(tokenTxt);
-		tokenTxt.setColumns(10);
-		
-		JButton updateBtn = new JButton("Update");
-		updateBtn.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				api.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
-				try{
-				refreshTimer.cancel();
-				}catch(Exception ex){}
-				refreshTimer = new Timer();
-				refreshTimer.scheduleAtFixedRate(new TimerTask(){
-					@Override
-					public void run() {
-						updateAPI();
-						
-					}}, 0, 1000 * api.getRefresh());
-				
-
-			}
-		});
-		updateBtn.setBounds(305, 129, 117, 25);
-		ConfigPanel.add(updateBtn);
-		
-		serverTxt.setText(api.getServer());
-		tokenTxt.setText(api.getToken());
-		
-		
-		JLabel lblRefresh = new JLabel("Refresh:");
-		lblRefresh.setBounds(32, 134, 46, 25);
-		ConfigPanel.add(lblRefresh);
-		
-		refreshRate = new JTextField();
-		refreshRate.setText("20");
-		refreshRate.setBounds(88, 129, 46, 25);
-		ConfigPanel.add(refreshRate);
-		refreshRate.setColumns(10);
-		refreshRate.setText("" + api.getRefresh());
-		
-		JLabel lblSecs = new JLabel("Seconds");
-		lblSecs.setBounds(144, 134, 100, 20);
-		ConfigPanel.add(lblSecs);
 		
 		
 		refreshTimer = new Timer();
@@ -576,7 +607,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			public void run() {
 				updateAPI();
 				
-			}}, 0, 1000 * api.getRefresh());
+			}}, 0, 1000 * factionApi.getRefresh());
 		
 		
 	}
@@ -586,7 +617,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		/*
 		 * Get Verificaiton Queue
 		 */
-		JSONArray vjson = api.executeGet(FuseAPI.VQUEUE);
+		JSONArray vjson = factionApi.executeGet(FuseAPI.VQUEUE);
 		if(vjson != null){
 			
 			for(int i = verModel.getRowCount()-1; i >=0; i--){
@@ -608,7 +639,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		/*
 		 * Get Assessment Queue	
 		 */
-		JSONArray json = api.executeGet(FuseAPI.QUEUE);
+		JSONArray json = factionApi.executeGet(FuseAPI.QUEUE);
 		if(json == null)
 			return;
 		/*
@@ -642,7 +673,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		if(!appId.equals("")){
 			JSONArray vulns = new JSONArray();
 			try {
-				vulns = api.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+				vulns = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
 			} catch (UnsupportedEncodingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -715,69 +746,19 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		
 	}
-	
 	public String getAppId(){
 		return this.appId;
 	}
-	private void playSoundInternal(InputStream f) {
-	    try {
-	    	
-	        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(f);
-	        try {
-	            Clip clip = AudioSystem.getClip();
-	            clip.open(audioInputStream);
-	            try {
-	                clip.start();
-	                try {
-	                    Thread.sleep(100);
-	                } catch (InterruptedException e) {
-	                    e.printStackTrace();
-	                }
-	                clip.drain();
-	            } finally {
-	                clip.close();
-	            }
-	        } catch (LineUnavailableException e) {
-	            e.printStackTrace();
-	        } finally {
-	            audioInputStream.close();
-	        }
-	    } catch (UnsupportedAudioFileException e) {
-	        e.printStackTrace();
-	    } catch (FileNotFoundException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	    }
-	}
-	
-	 public static void tone(float hz, int msecs, double vol){
-		 try {
-		    byte[] buf = new byte[1];
-		    AudioFormat af = 
-		        new AudioFormat(
-		        	8000f, // sampleRate
-		            8,           // sampleSizeInBits
-		            1,           // channels
-		            true,        // signed
-		            false);      // bigEndian
-		    SourceDataLine sdl;
-			
-			sdl = AudioSystem.getSourceDataLine(af);
-			
-		    sdl.open(af);
-		    sdl.start();
-		    for (int i=0; i < msecs*8; i++) {
-		      double angle = i / (8000f / hz) * 2.0 * Math.PI;
-		      buf[0] = (byte)(Math.sin(angle) * 127.0 * vol);
-		      sdl.write(buf,0,1);
-		    }
-		    sdl.drain();
-		    sdl.stop();
-		    sdl.close();
-			} catch (LineUnavailableException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+	private void setSeverityComboBoxDefaults(JComboBox jbox, String burpSeverityString, String [] severityStrings){	
+		System.out.println(severityStrings);
+		jbox.setModel(new DefaultComboBoxModel(severityStrings));
+		int sevId = factionApi.getSevMapping(burpSeverityString);
+		String sevStr = factionApi.getSeverityStringFromSeverityId(sevId);
+		for(int j =0; j<jbox.getItemCount(); j++){
+			if(jbox.getItemAt(j).equals(sevStr)){
+				jbox.setSelectedIndex(j);
+				break;
 			}
-		  }
+		}
+	}
 }

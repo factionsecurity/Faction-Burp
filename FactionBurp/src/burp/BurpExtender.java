@@ -9,104 +9,32 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 
-import com.fuse.events.ActionJackson;
+import com.fuse.events.FactionMenuItemsProvider;
 import com.fuse.gui.FactionGUI;
 
 import burp.IBurpExtender;
 import burp.IBurpExtenderCallbacks;
 import burp.ITab;
+import burp.api.montoya.BurpExtension;
+import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
+import burp.api.montoya.ui.contextmenu.ContextMenuItemsProvider;
+import burp.api.montoya.core.ToolType;
 
-public class BurpExtender implements IBurpExtender, ITab, IContextMenuFactory{
+public class BurpExtender implements BurpExtension, IBurpExtender{
 	private FactionGUI factionUI;
-	private IBurpExtenderCallbacks cb;
-	
+	private IBurpExtenderCallbacks legacyCallback;
 
+	@Override
+	public void initialize(MontoyaApi api) {
+		api.extension().setName("Faction");
+		factionUI = new FactionGUI(api, legacyCallback);
+		api.userInterface().registerSuiteTab("Faction", factionUI);
+		api.userInterface().registerContextMenuItemsProvider(new FactionMenuItemsProvider(factionUI));
+	}
 
 	@Override
 	public void registerExtenderCallbacks(IBurpExtenderCallbacks callbacks) {
-		
-		this.cb = callbacks;
-		callbacks.setExtensionName("FACTION");
-		callbacks.registerContextMenuFactory(this);
-		//System.out.println("Class : " + this.getUiComponent().getClass().getName());
-		
-		
-		SwingUtilities.invokeLater(new Runnable() 
-        {
-			
-			@Override
-			public void run() {
-				factionUI = new FactionGUI(cb);
-				callbacks.customizeUiComponent(factionUI);
-				callbacks.addSuiteTab(BurpExtender.this);
-			}
-		
-        });
+		this.legacyCallback = callbacks;
 	}
-	
-	@Override
-	public String getTabCaption() {
-		
-		return "FACTION";
-	}
-
-
-
-	@Override
-	public Component getUiComponent() {
-		
-		return factionUI;
-	}
-
-	@Override
-	public List<JMenuItem> createMenuItems(IContextMenuInvocation inv) {
-		JMenu faction = new JMenu("Faction");
-		List<JMenuItem> menus = new ArrayList<JMenuItem>();
-		if(isMessageEditor(inv)){
-			JMenuItem newVuln = new JMenuItem("Add as New Finding");
-			newVuln.addActionListener(new ActionJackson(cb, inv, true, factionUI.getAppId()));
-			
-			JMenuItem addExisting = new JMenuItem("Add to Existing Finding");
-			addExisting.addActionListener(new ActionJackson(cb, inv, false, factionUI.getAppId()));
-			faction.add(newVuln);
-			faction.add(addExisting);
-			
-			menus.add(faction);
-		}else if(isScanItems(inv)){
-			JMenuItem newScans = new JMenuItem("Send as New Scan Items");
-			newScans.addActionListener(new ActionJackson(cb, inv, true, factionUI.getAppId()));
-			faction.add(newScans);
-			menus.add(faction);
-		}
-		return menus;
-	}
-	
-	
-	private boolean isMessageEditor(IContextMenuInvocation inv){
-		byte ctx = inv.getInvocationContext();
-		if(ctx == inv.CONTEXT_MESSAGE_EDITOR_REQUEST || ctx == inv.CONTEXT_MESSAGE_EDITOR_RESPONSE ||
-				ctx == inv.CONTEXT_MESSAGE_VIEWER_REQUEST || ctx == inv.CONTEXT_MESSAGE_VIEWER_RESPONSE 
-				){
-			return true;
-		}else
-			return false;
-		
-	}
-	private boolean isScanItems(IContextMenuInvocation inv){
-		byte ctx = inv.getInvocationContext();
-		if(ctx == inv.CONTEXT_SCANNER_RESULTS){
-			return true;
-		}else{
-			return false;
-		}
-	}
-	private boolean isSiteMap(IContextMenuInvocation inv){
-		byte ctx = inv.getInvocationContext();
-		if(ctx == inv.CONTEXT_TARGET_SITE_MAP_TABLE || ctx == inv.CONTEXT_TARGET_SITE_MAP_TREE){
-			return true;
-		}else{
-			return false;
-		}
-	}
-
 }

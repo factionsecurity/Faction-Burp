@@ -1,2 +1,6 @@
 
 VTrackBurp/faction\.properties
+
+.DS_Store
+
+FactionBurp/.classpath
