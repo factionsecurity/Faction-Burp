@@ -1,9 +1,7 @@
-package com.org.faction.gui;
+package com.faction.gui;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -28,21 +26,12 @@ import java.awt.GridBagConstraints;
 import javax.swing.JScrollPane;
 
 import java.awt.Insets;
-import java.awt.Toolkit;
-import java.awt.FlowLayout;
-
-import javax.swing.SwingConstants;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
-import com.org.faction.api.FactionAPI;
-import com.org.faction.utils.FSUtils;
+import com.faction.api.FactionAPI;
+import com.faction.utils.FSUtils;
 
 import burp.IBurpExtenderCallbacks;
 import burp.IExtensionStateListener;
@@ -52,41 +41,17 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 
-import javax.swing.JTextArea;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.Box;
-import javax.swing.DefaultComboBoxModel;
 
 import java.awt.Dimension;
 import java.awt.Font;
@@ -115,10 +80,11 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	private Timer refreshTimer;
 	private String appId = "";
 	private JTable verTable;
+	private JTextField txtHttpsgithubcomfactionsecurityfaction;
+	private JTextField txtHttpswwwfactionsecuritycom;
 
 
 	public void extensionUnloaded(){
-		System.out.println("Unloading....");
 		refreshTimer.cancel();
 	}
 	/**
@@ -135,118 +101,19 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		
 		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		contentPane.add(tabbedPane);
-		
-		JPanel ConfigPanel = new JPanel();
-		tabbedPane.addTab("Config", null, ConfigPanel, null);
-		ConfigPanel.setLayout(null);
-		
-		JLabel lblServer = new JLabel("Server:");
-		lblServer.setBounds(32, 54, 60, 15);
-		ConfigPanel.add(lblServer);
-		
-		JLabel lblToken = new JLabel("Token:");
-		lblToken.setBounds(32, 97, 60, 15);
-		ConfigPanel.add(lblToken);
-		
-		serverTxt = new JTextField();
-		serverTxt.setBounds(88, 48, 336, 27);
-		ConfigPanel.add(serverTxt);
-		serverTxt.setColumns(10);
-		
-		tokenTxt = new JPasswordField();
-		tokenTxt.setBounds(88, 91, 336, 27);
-		ConfigPanel.add(tokenTxt);
-		tokenTxt.setColumns(10);
-		
-		JButton updateBtn = new JButton("Update");
-		updateBtn.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
-				try{
-				refreshTimer.cancel();
-				}catch(Exception ex){}
-				refreshTimer = new Timer();
-				refreshTimer.scheduleAtFixedRate(new TimerTask(){
-					@Override
-					public void run() {
-						updateAPI();
-						
-					}}, 0, 1000 * factionApi.getRefresh());
-				
-
-			}
-		});
-		updateBtn.setBounds(305, 129, 117, 25);
-		ConfigPanel.add(updateBtn);
-		
-		serverTxt.setText(factionApi.getServer());
-		tokenTxt.setText(factionApi.getToken());
-		
-		
-		
-				
-				
-				JLabel lblRefresh = new JLabel("Refresh:");
-				lblRefresh.setBounds(32, 134, 46, 25);
-				ConfigPanel.add(lblRefresh);
-				
-				refreshRate = new JTextField();
-				refreshRate.setText("20");
-				refreshRate.setBounds(88, 129, 46, 25);
-				ConfigPanel.add(refreshRate);
-				refreshRate.setColumns(10);
-				refreshRate.setText("" + factionApi.getRefresh());
-				
-				JLabel lblSecs = new JLabel("Seconds");
-				lblSecs.setBounds(144, 134, 100, 20);
-				ConfigPanel.add(lblSecs);
-				
-				JLabel lblNewLabel = new JLabel("Scanner Severity Mapping");
-				lblNewLabel.setFont(new Font("Lucida Grande", Font.BOLD, 15));
-				lblNewLabel.setBounds(31, 181, 213, 16);
-				ConfigPanel.add(lblNewLabel);
-				
-				JLabel lblNewLabel_1 = new JLabel("HIGH");
-				lblNewLabel_1.setBounds(140, 213, 100, 16);
-				ConfigPanel.add(lblNewLabel_1);
-				
-				JLabel lblNewLabel_2 = new JLabel("MEDIUM");
-				lblNewLabel_2.setBounds(140, 245, 103, 16);
-				ConfigPanel.add(lblNewLabel_2);
-				
-				JLabel lblNewLabel_3 = new JLabel("LOW");
-				lblNewLabel_3.setBounds(140, 277, 102, 16);
-				ConfigPanel.add(lblNewLabel_3);
-				
-				JLabel lblNewLabel_4 = new JLabel("INFORMATION");
-				lblNewLabel_4.setBounds(140, 309, 103, 16);
-				ConfigPanel.add(lblNewLabel_4);
 
 				String [] severityStrings = factionApi.getSeverityStrings();
-				JComboBox sevMapMed = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapMed,FactionAPI.BURP_SEV_MED,severityStrings, (selectedSev) ->{
-					factionApi.updateSev(FactionAPI.BURP_SEV_MED, selectedSev);
-				} );
-				sevMapMed.setBounds(32, 241, 104, 27);
-				ConfigPanel.add(sevMapMed);
-				
-				JComboBox sevMapHigh = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapHigh,FactionAPI.BURP_SEV_HIGH,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_HIGH, selectedSev) );
-				sevMapHigh.setBounds(32, 209, 104, 27);
-				ConfigPanel.add(sevMapHigh);
-				
-				JComboBox sevMapLow = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapLow,FactionAPI.BURP_SEV_LOW,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_LOW, selectedSev) );
-				sevMapLow.setBounds(32, 273, 104, 27);
-				ConfigPanel.add(sevMapLow);
-				
-				JComboBox sevMapInfo = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapInfo,FactionAPI.BURP_SEV_INFO,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_INFO, selectedSev) );
-				sevMapInfo.setBounds(32, 305, 104, 27);
-				ConfigPanel.add(sevMapInfo);
+		String vColumnNames[] = { "Start", "Name", "Vulnerability", "Severity", "VulnId" };
+		verModel = new FactionTableModel(vColumnNames);
+		Vector vvect = new Vector();
+		vvect.add("");vvect.add("");vvect.add("");vvect.add("");
+		verModel.addRow(vvect);
+		String columnNames[] = { "AppId", "AppName", "Start Date", "EndDate" };
+		asmtModel = new FactionTableModel(columnNames);
+		Vector vect = new Vector();
+		vect.add("");vect.add("");vect.add("");vect.add("");
+		asmtModel.addRow(vect);
+		
 		
 		JSplitPane combinedQueue = new JSplitPane();
 		combinedQueue.setResizeWeight(0.5);
@@ -270,13 +137,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		panel_3.add(scrollPane_3, gbc_scrollPane_3);
 		
 		verTable = new JTable();
-		String vColumnNames[] = { "Start", "Name", "Vulnerability", "Severity", "VulnId" };
-		verModel = new FactionTableModel(vColumnNames);
 		verTable.setAutoCreateRowSorter(true);
 		verTable.setModel(verModel);
-		Vector vvect = new Vector();
-		vvect.add("");vvect.add("");vvect.add("");vvect.add("");
-		verModel.addRow(vvect);
 		verTable.getRowSorter().toggleSortOrder(0);
 		verTable.addMouseListener(new MouseAdapter(){
 		    public void mouseClicked(MouseEvent evnt) {
@@ -361,13 +223,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		});
 		
 		queueTable = new JTable();
-		String columnNames[] = { "AppId", "AppName", "Start Date", "EndDate" };
-		asmtModel = new FactionTableModel(columnNames);
 		queueTable.setAutoCreateRowSorter(true);
 		queueTable.setModel(asmtModel);
-		Vector vect = new Vector();
-		vect.add("");vect.add("");vect.add("");vect.add("");
-		asmtModel.addRow(vect);
 		queueTable.getRowSorter().toggleSortOrder(2);
 		queueTable.addMouseListener(new MouseAdapter(){
 		    public void mouseClicked(MouseEvent evnt) {
@@ -562,7 +419,61 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		        int realRow = table.convertRowIndexToModel(row);
 		        
 		        String status = "" + table.getModel().getValueAt(realRow, col);
-		        if ("Critical".equals(status)) {
+				Integer sevId = factionApi.getLevelMap().get(status.toLowerCase());
+				if(sevId == null){
+		        	if(row%2==0){
+			            setBackground(table.getBackground());  
+		        	}else{
+		        		setBackground(Color.getColor("EEEEEE"));
+		        	}
+		        	setForeground(table.getForeground());
+
+				}else{
+					switch(sevId) {
+						case 9: 
+							setBackground(Color.decode("#8E44AD"));
+							setForeground(Color.WHITE);
+							break;
+						case 8: 
+							setBackground(Color.decode("#8E44AD"));
+							setForeground(Color.WHITE);
+							break;
+						case 7: 
+							setBackground(Color.decode("#8E44AD"));
+							setForeground(Color.WHITE);
+							break;
+						case 6: 
+							setBackground(Color.decode("#8E44AD"));
+							setForeground(Color.WHITE);
+							break;
+						case 5: 
+							setBackground(Color.decode("#DD4B39"));
+							setForeground(Color.WHITE);
+							break;
+						case 4: 
+							setBackground(Color.decode("#F39C12"));
+							setForeground(Color.WHITE);
+							break;
+						case 3: 
+							setBackground(Color.decode("#00C0EF"));
+							setForeground(Color.WHITE);
+							break;
+						case 2: 
+							setBackground(Color.decode("#39CCCC"));
+							setForeground(Color.WHITE);
+							break;
+						case 1: 
+							setBackground(Color.decode("#00A65A"));
+							setForeground(Color.WHITE);
+							break;
+						default: 
+							setBackground(Color.decode("#95A5A6"));
+							setForeground(Color.WHITE);
+							break;
+					}
+
+				}
+		        /*if ("Critical".equals(status)) {
 		            setBackground(new Color(231, 76, 60));
 		            setForeground(Color.WHITE);
 		        } else if ("High".equals(status)) {
@@ -578,7 +489,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		        		setBackground(Color.getColor("EEEEEE"));
 		        	}
 		        	setForeground(table.getForeground());
-		        }       
+		        }       */
 		        return this;
 		    }   
 		});
@@ -602,6 +513,146 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		});
 		
 		scrollPane_1.setViewportView(vulnTable);
+		
+		JPanel ConfigPanel = new JPanel();
+		tabbedPane.addTab("Config", null, ConfigPanel, null);
+		ConfigPanel.setLayout(null);
+		
+		JLabel lblServer = new JLabel("Server:");
+		lblServer.setBounds(32, 54, 60, 15);
+		ConfigPanel.add(lblServer);
+		
+		JLabel lblToken = new JLabel("Token:");
+		lblToken.setBounds(32, 97, 60, 15);
+		ConfigPanel.add(lblToken);
+		
+		serverTxt = new JTextField();
+		serverTxt.setBounds(88, 48, 336, 27);
+		ConfigPanel.add(serverTxt);
+		serverTxt.setColumns(10);
+		
+		tokenTxt = new JPasswordField();
+		tokenTxt.setBounds(88, 91, 336, 27);
+		ConfigPanel.add(tokenTxt);
+		tokenTxt.setColumns(10);
+		
+		JButton updateBtn = new JButton("Update");
+		updateBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
+				try{
+				refreshTimer.cancel();
+				}catch(Exception ex){}
+				refreshTimer = new Timer();
+				refreshTimer.scheduleAtFixedRate(new TimerTask(){
+					@Override
+					public void run() {
+						updateAPI();
+						
+					}}, 0, 1000 * factionApi.getRefresh());
+				
+
+			}
+		});
+		updateBtn.setBounds(305, 129, 117, 25);
+		ConfigPanel.add(updateBtn);
+		
+		serverTxt.setText(factionApi.getServer());
+		tokenTxt.setText(factionApi.getToken());
+		
+		
+		
+				
+				
+				JLabel lblRefresh = new JLabel("Refresh:");
+				lblRefresh.setBounds(32, 134, 46, 25);
+				ConfigPanel.add(lblRefresh);
+				
+				refreshRate = new JTextField();
+				refreshRate.setText("20");
+				refreshRate.setBounds(88, 129, 46, 25);
+				ConfigPanel.add(refreshRate);
+				refreshRate.setColumns(10);
+				refreshRate.setText("" + factionApi.getRefresh());
+				
+				JLabel lblSecs = new JLabel("Seconds");
+				lblSecs.setBounds(144, 134, 100, 20);
+				ConfigPanel.add(lblSecs);
+				
+				JLabel lblNewLabel = new JLabel("Burp to Faction Severity Mapping");
+				lblNewLabel.setFont(new Font("Lucida Grande", Font.BOLD, 18));
+				lblNewLabel.setBounds(32, 166, 392, 31);
+				ConfigPanel.add(lblNewLabel);
+				
+				JLabel lblNewLabel_1 = new JLabel("Burp HIGH");
+				lblNewLabel_1.setBounds(140, 213, 100, 16);
+				ConfigPanel.add(lblNewLabel_1);
+				
+				JLabel lblNewLabel_2 = new JLabel("Burp MEDIUM");
+				lblNewLabel_2.setBounds(140, 245, 103, 16);
+				ConfigPanel.add(lblNewLabel_2);
+				
+				JLabel lblNewLabel_3 = new JLabel("Burp LOW");
+				lblNewLabel_3.setBounds(140, 277, 102, 16);
+				ConfigPanel.add(lblNewLabel_3);
+				
+				JLabel lblNewLabel_4 = new JLabel("Burp INFORMATION");
+				lblNewLabel_4.setBounds(140, 309, 168, 16);
+				ConfigPanel.add(lblNewLabel_4);
+				JComboBox sevMapMed = new JComboBox();
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapMed,FactionAPI.BURP_SEV_MED,severityStrings, (selectedSev) ->{
+					factionApi.updateSev(FactionAPI.BURP_SEV_MED, selectedSev);
+				} );
+				sevMapMed.setBounds(32, 241, 104, 27);
+				ConfigPanel.add(sevMapMed);
+				
+				JComboBox sevMapHigh = new JComboBox();
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapHigh,FactionAPI.BURP_SEV_HIGH,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_HIGH, selectedSev) );
+				sevMapHigh.setBounds(32, 209, 104, 27);
+				ConfigPanel.add(sevMapHigh);
+				
+				JComboBox sevMapLow = new JComboBox();
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapLow,FactionAPI.BURP_SEV_LOW,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_LOW, selectedSev) );
+				sevMapLow.setBounds(32, 273, 104, 27);
+				ConfigPanel.add(sevMapLow);
+				
+				JComboBox sevMapInfo = new JComboBox();
+				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapInfo,FactionAPI.BURP_SEV_INFO,severityStrings, (selectedSev) ->
+				factionApi.updateSev(FactionAPI.BURP_SEV_INFO, selectedSev) );
+				sevMapInfo.setBounds(32, 305, 104, 27);
+				ConfigPanel.add(sevMapInfo);
+				
+				JLabel lblNewLabel_5 = new JLabel("Faction - Open Source Assessment Collaboration");
+				lblNewLabel_5.setFont(new Font("Lucida Grande", Font.BOLD, 18));
+				lblNewLabel_5.setBounds(514, 48, 512, 21);
+				ConfigPanel.add(lblNewLabel_5);
+				
+				JLabel lblNewLabel_6 = new JLabel("GitHub");
+				lblNewLabel_6.setBounds(514, 96, 61, 16);
+				ConfigPanel.add(lblNewLabel_6);
+				
+				txtHttpsgithubcomfactionsecurityfaction = new JTextField();
+				txtHttpsgithubcomfactionsecurityfaction.setText("https://github.com/factionsecurity/faction");
+				txtHttpsgithubcomfactionsecurityfaction.setBounds(587, 91, 439, 26);
+				ConfigPanel.add(txtHttpsgithubcomfactionsecurityfaction);
+				txtHttpsgithubcomfactionsecurityfaction.setColumns(10);
+				
+				JLabel lblNewLabel_7 = new JLabel("WebSite");
+				lblNewLabel_7.setBounds(514, 132, 61, 16);
+				ConfigPanel.add(lblNewLabel_7);
+				
+				txtHttpswwwfactionsecuritycom = new JTextField();
+				txtHttpswwwfactionsecuritycom.setText("https://www.factionsecurity.com");
+				txtHttpswwwfactionsecuritycom.setColumns(10);
+				txtHttpswwwfactionsecuritycom.setBounds(587, 127, 439, 26);
+				ConfigPanel.add(txtHttpswwwfactionsecuritycom);
+				
+				JLabel lblNewLabel_8 = new JLabel("Server Configuration");
+				lblNewLabel_8.setFont(new Font("Lucida Grande", Font.BOLD, 18));
+				lblNewLabel_8.setBounds(32, 20, 392, 16);
+				ConfigPanel.add(lblNewLabel_8);
 		
 		
 		
@@ -697,7 +748,6 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
         		boolean found=false;
         		
         		for(int j =0; j<vulnModel.getRowCount(); j++){
-        			//System.out.println(vulnModel.getValueAt(j, 6) + " , " + v.get(6));
         			if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
         				found = true;
         				break;

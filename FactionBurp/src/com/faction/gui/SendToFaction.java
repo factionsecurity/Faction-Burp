@@ -1,4 +1,4 @@
-package com.org.faction.gui;
+package com.faction.gui;
 
 
 import javax.swing.JFrame;
@@ -14,8 +14,8 @@ import org.apache.commons.lang.StringEscapeUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import com.org.faction.api.FactionAPI;
-import com.org.faction.utils.FSUtils;
+import com.faction.api.FactionAPI;
+import com.faction.utils.FSUtils;
 import com.sun.jersey.core.util.Base64;
 
 import burp.IBurpExtenderCallbacks;

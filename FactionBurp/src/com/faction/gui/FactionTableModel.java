@@ -1,4 +1,4 @@
-package com.org.faction.gui;
+package com.faction.gui;
 
 import java.awt.Color;
 

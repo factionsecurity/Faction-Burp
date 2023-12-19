@@ -1,4 +1,4 @@
-package com.org.faction.api;
+package com.faction.api;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;

@@ -1,4 +1,4 @@
-package com.org.faction.gui;
+package com.faction.gui;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
@@ -6,7 +6,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.*;
 
-import java.util.Dictionary;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -1243,7 +1242,6 @@ public class Base64ImageView extends View {
             return null;
         }
         String data = src.replaceFirst("^.*;base64,", "");
-        //System.out.println(data);
         return data;
     }
 

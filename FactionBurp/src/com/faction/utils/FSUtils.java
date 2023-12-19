@@ -1,4 +1,4 @@
-package com.org.faction.utils;
+package com.faction.utils;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -15,7 +15,7 @@ import javax.swing.JComboBox;
 
 import org.apache.commons.lang.StringEscapeUtils;
 
-import com.org.faction.api.FactionAPI;
+import com.faction.api.FactionAPI;
 import com.sun.jersey.core.util.Base64;
 
 import burp.IHttpRequestResponse;
@@ -41,30 +41,6 @@ public class FSUtils {
 				//api.updateSev(burpSeverityString, selectedSev);
 			}
 		});
-	}
-	
-	public static Boolean ask(String question, Scanner reader){
-		String answer = "";
-		System.out.println(question);
-	
-		while(true){
-			System.out.println("[y]es | [n]o | [e]xit");
-			answer= reader.next();
-			if(answer.startsWith("y") || answer.startsWith("n") || answer.startsWith("e"))
-				break;
-			if(answer.startsWith("Y") || answer.startsWith("N") || answer.startsWith("E"))
-				break;
-		}
-		if(answer.startsWith("e") || answer.startsWith("E")){
-			System.out.println("Cancelling Import.");
-			return null;
-		}else if(answer.startsWith("n") || answer.startsWith("N")){
-			return false;
-		}else if(answer.startsWith("y") || answer.startsWith("Y")){
-			return true;
-		}
-		System.out.println("An Error Occured");
-		return null;
 	}
 	public static String createMessage(String Message, String Req, String Resp, boolean snipCookies, boolean encode){
 		String message = createMessage(Message, Req,Resp, snipCookies);

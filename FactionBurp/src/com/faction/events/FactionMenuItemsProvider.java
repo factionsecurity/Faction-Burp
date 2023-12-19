@@ -1,4 +1,4 @@
-package com.org.faction.events;
+package com.faction.events;
 
 import java.awt.Component;
 import java.awt.EventQueue;
@@ -10,8 +10,8 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 
-import com.org.faction.gui.FactionGUI;
-import com.org.faction.gui.SendToFaction;
+import com.faction.gui.FactionGUI;
+import com.faction.gui.SendToFaction;
 
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.core.ToolType;
@@ -34,7 +34,6 @@ public class FactionMenuItemsProvider implements ContextMenuItemsProvider {
 	@Override
 	public List<Component> provideMenuItems(ContextMenuEvent event) {
 		this.contextMenuEvent = event;
-		System.out.println(event.toolType());
 		if (event.isFromTool(ToolType.PROXY, ToolType.TARGET, ToolType.REPEATER)) {
 			List<Component> menuItemList = new ArrayList<>();
 
@@ -56,7 +55,6 @@ public class FactionMenuItemsProvider implements ContextMenuItemsProvider {
 	}
 
 	public List<Component> provideMenuItems(AuditIssueContextMenuEvent event) {
-		System.out.println("In Scanner");
 		AuditIssueContextMenuEvent scanEvent = (AuditIssueContextMenuEvent) event;
 		auditIssues = scanEvent.selectedIssues();
 		List<Component> menuItemList = new ArrayList<>();
