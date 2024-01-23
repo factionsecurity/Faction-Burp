@@ -3,7 +3,7 @@ This Burp Suite Extension allows you to integrate BurpSuite into the [Faction](h
 Faction allows you to:
 1. Automate Vulnerability Reports
 2. Collaborate with other pen-testers
-3. Track Vulnerabilties to Closer
+3. Track Vulnerabilties to Closure
 
 ## Build from Source 
 ```
