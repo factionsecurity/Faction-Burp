@@ -10,6 +10,7 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 
+import com.faction.api.FactionAPI;
 import com.faction.gui.FactionGUI;
 import com.faction.gui.SendToFaction;
 
@@ -26,9 +27,11 @@ public class FactionMenuItemsProvider implements ContextMenuItemsProvider {
 	private FactionGUI factionUI;
 	private List<AuditIssue> auditIssues;
 	private ContextMenuEvent contextMenuEvent;
+	private FactionAPI factionApi;
 
 	public FactionMenuItemsProvider(FactionGUI factionUI) {
 		this.factionUI = factionUI;
+		this.factionApi = factionUI.getFactionApi();
 	}
 
 	@Override
@@ -44,8 +47,8 @@ public class FactionMenuItemsProvider implements ContextMenuItemsProvider {
 					? event.messageEditorRequestResponse().get().requestResponse()
 					: event.selectedRequestResponses().get(0);
 
-			newItem.addActionListener(new FactionMenuAction(event, false, true, factionUI.getAppId()));
-			addExisting.addActionListener(new FactionMenuAction(event,false, false, factionUI.getAppId()));
+			newItem.addActionListener(new FactionMenuAction(event, false, true, factionUI.getAppId(), this.factionApi));
+			addExisting.addActionListener(new FactionMenuAction(event,false, false, factionUI.getAppId(), this.factionApi));
 			menuItemList.add(newItem);
 			menuItemList.add(addExisting);
 			return menuItemList;
@@ -60,7 +63,7 @@ public class FactionMenuItemsProvider implements ContextMenuItemsProvider {
 		List<Component> menuItemList = new ArrayList<>();
 
 		JMenuItem sendScanItemsToFaction = new JMenuItem("Send Issues To Faction");
-		sendScanItemsToFaction.addActionListener(new FactionMenuAction(event,true, true, factionUI.getAppId()));
+		sendScanItemsToFaction.addActionListener(new FactionMenuAction(event,true, true, factionUI.getAppId(), factionApi));
 		menuItemList.add(sendScanItemsToFaction);
 		return menuItemList;
 	}

@@ -67,7 +67,7 @@ public class SendToFaction {
 
 	public JFrame frame;
 	private JTextField vulnName;
-	private FactionAPI api = new FactionAPI();
+	private FactionAPI factionApi;
 	private JSONArray asmts;
 	private JSONArray vulns;
 	private JCheckBox optReq;
@@ -91,17 +91,15 @@ public class SendToFaction {
 	private JPanel panel_1;
 	private boolean isScan;
 	
-	
-
-	
 	/**
 	 * Create the application.
 	 */
-	public SendToFaction(Object event, boolean isScan, boolean isNew, String appId) {
+	public SendToFaction(Object event, boolean isScan, boolean isNew, String appId, FactionAPI factionApi) {
 		this.isNew = isNew;
 		this.appId = appId;
 		this.event = event;
 		this.isScanIssue = isScan;
+		this.factionApi = factionApi;
 
 		if(isScanIssue){
 			List<AuditIssue> selectedIssues = ((AuditIssueContextMenuEvent) event).selectedIssues();
@@ -126,7 +124,7 @@ public class SendToFaction {
 	 * Initialize the contents of the frame.
 	 */
 	private void initialize() {
-		levels = api.getLevelMap();
+		levels = factionApi.getLevelMap();
 		frame = new JFrame();
 		//frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -185,7 +183,7 @@ public class SendToFaction {
 				if(!isNew){
 					int index = assessmentList.getSelectedIndex();
 					JSONObject obj = (JSONObject)asmts.get(index);
-					vulns = api.executeGet(FactionAPI.GETVULNS + obj.get("Id"));
+					vulns = factionApi.executeGet(FactionAPI.GETVULNS + obj.get("Id"));
 					vulnList.removeAllItems();
 					for(int i=0; i< vulns.size(); i++){
 						JSONObject vuln = (JSONObject)vulns.get(i);
@@ -261,7 +259,7 @@ public class SendToFaction {
 			@Override
 			public void keyTyped(KeyEvent arg0) {
 				if(vulnSearch.getText().length() >= 2 ){
-					JSONArray jarray = api.executeGet(FactionAPI.SEARCH_DEFAULT_VULN + vulnSearch.getText());
+					JSONArray jarray = factionApi.executeGet(FactionAPI.SEARCH_DEFAULT_VULN + vulnSearch.getText());
 					if(defaultVulns.getItemCount() > 0){
 						defaultVulns.removeAllItems();
 						_defaultVulns.clear();
@@ -403,8 +401,8 @@ public class SendToFaction {
 		
 		severity = new JComboBox();
 		severity.setToolTipText("Set the Overall Severity of the issue.");
-		String [] severityStrings = api.getSeverityStrings();
-		FSUtils.setSeverityComboBoxDefaults(api, severity, FactionAPI.BURP_SEV_HIGH, severityStrings, (updatedSeverityString) ->{});
+		String [] severityStrings = factionApi.getSeverityStrings();
+		FSUtils.setSeverityComboBoxDefaults(factionApi, severity, FactionAPI.BURP_SEV_HIGH, severityStrings, (updatedSeverityString) ->{});
 
 		GridBagConstraints gbc_severity = new GridBagConstraints();
 		gbc_severity.insets = new Insets(0, 0, 0, 5);
@@ -493,8 +491,8 @@ public class SendToFaction {
 								+ "&details=" +URLEncoder.encode(b64Details, "UTF-8")
 								+ "&description=" + URLEncoder.encode(b64Description, "UTF-8")
 								+ "&recommendation="+ URLEncoder.encode(b64Recommendation, "UTF-8")
-								+ "&severity=" + api.getSevMapping(baseIssue.severity().name());
-								api.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
+								+ "&severity=" + factionApi.getSevMapping(baseIssue.severity().name());
+								factionApi.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
 							} catch (UnsupportedEncodingException ex){
 								System.out.println(ex.getMessage());
 							}
@@ -511,9 +509,9 @@ public class SendToFaction {
 							postData+="&severity=" + levels.get(""+severity.getSelectedItem());
 							if(_defaultVulns.size() > 0){
 								JSONObject vobj = _defaultVulns.get(defaultVulns.getSelectedItem());
-								api.executePost(FactionAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
+								factionApi.executePost(FactionAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
 							}else{
-								api.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
+								factionApi.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
 							}
 						} catch (UnsupportedEncodingException ex){
 							System.out.println(ex.getMessage());
@@ -529,7 +527,7 @@ public class SendToFaction {
 					JSONObject vObj = (JSONObject)vulns.get(vindex);
 					String postData = "feed=false&details=" +URLEncoder.encode(b64);
 					postData+="&severity=" + levels.get(""+severity.getSelectedItem());
-					api.executePost(FactionAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
+					factionApi.executePost(FactionAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
 					
 				}
 				
@@ -550,7 +548,7 @@ public class SendToFaction {
 		gbc_rigidArea_3.gridy = 8;
 		frame.getContentPane().add(rigidArea_3, gbc_rigidArea_3);
 		
-		asmts = api.executeGet("/assessments/queue");
+		asmts = factionApi.executeGet("/assessments/queue");
 		for(int i=0; i< asmts.size(); i++){
 			JSONObject obj = (JSONObject)asmts.get(i);
 			assessmentList.addItem(obj.get("AppId") + " " + obj.get("Name"));
@@ -617,7 +615,7 @@ public class SendToFaction {
 				request.append(r.requestResponse().request().toString());
 			}
 			StringBuilder response = new StringBuilder("");
-			if( this.optResp.isSelected()){
+			if( this.optResp.isSelected() && r.requestResponse().hasResponse()){
 				response.append(r.requestResponse().response().toString());
 			}
 			r.selectionOffsets().ifPresent( range ->{

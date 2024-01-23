@@ -36,6 +36,8 @@ import com.faction.utils.FSUtils;
 import burp.IBurpExtenderCallbacks;
 import burp.IExtensionStateListener;
 import burp.api.montoya.MontoyaApi;
+import burp.api.montoya.extension.ExtensionUnloadingHandler;
+import burp.api.montoya.logging.Logging;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -46,6 +48,7 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -57,11 +60,13 @@ import java.awt.Dimension;
 import java.awt.Font;
 
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.border.LineBorder;
 import javax.swing.JPasswordField;
 import javax.swing.JSplitPane;
 
-public class FactionGUI extends JPanel implements IExtensionStateListener  {
+public class FactionGUI extends JPanel implements IExtensionStateListener, ExtensionUnloadingHandler  {
 
 	private JPanel contentPane;
 	private JTextField serverTxt;
@@ -74,24 +79,28 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	private JTextField asmtName;
 	private JEditorPane notesTxt;
 	private JEditorPane notes2Txt;
-	private List<String> Notes = new ArrayList<String>();
-	private FactionAPI factionApi = new FactionAPI();
+	private LinkedHashMap<String, String> Notes = new LinkedHashMap<>();
+	private FactionAPI factionApi;
 	private JTextField refreshRate;
 	private Timer refreshTimer;
 	private String appId = "";
 	private JTable verTable;
 	private JTextField txtHttpsgithubcomfactionsecurityfaction;
 	private JTextField txtHttpswwwfactionsecuritycom;
+	private Logging logging;
+	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap<>();
 
 
 	public void extensionUnloaded(){
+		logging.logToOutput("Stoping Timer");
 		refreshTimer.cancel();
 	}
 	/**
 	 * Create the frame.
 	 */
 	public FactionGUI(MontoyaApi api, IBurpExtenderCallbacks legacyCallback) {
-
+		factionApi = new FactionAPI(api);
+		logging = api.logging();
 		setBounds(100, 100, 1099, 749);
 		//contentPane = new JPanel();
 		contentPane = this;
@@ -140,11 +149,10 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		verTable.setAutoCreateRowSorter(true);
 		verTable.setModel(verModel);
 		verTable.getRowSorter().toggleSortOrder(0);
-		verTable.addMouseListener(new MouseAdapter(){
-		    public void mouseClicked(MouseEvent evnt) {
-		        if (evnt.getClickCount() == 1) {
-			        synchronized(this){
-			        	
+		verTable.getSelectionModel().addListSelectionListener(
+			new ListSelectionListener(){
+        	public void valueChanged(ListSelectionEvent event) {
+				if(!event.getValueIsAdjusting() && verTable.getSelectedRow() != -1){
 			        	int r = verTable.getSelectedRow();
 			        	int row = verTable.convertRowIndexToModel(r);
 			        	
@@ -170,7 +178,6 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 			        	test.setSize(900, 1000);
 			        	test.setVisible(true);
 		        	}
-		        }
 		    }
 		});
 		
@@ -185,7 +192,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		gbc_panel_4.gridy = 1;
 		panel_3.add(panel_4, gbc_panel_4);
 		
-		JButton updateVerBtn = new JButton("Update");
+		JButton updateVerBtn = new JButton("Refresh");
 		panel_4.add(updateVerBtn);
 		
 		JPanel panel_5 = new JPanel();
@@ -221,55 +228,52 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 
 			}
 		});
-		
+
 		queueTable = new JTable();
 		queueTable.setAutoCreateRowSorter(true);
 		queueTable.setModel(asmtModel);
 		queueTable.getRowSorter().toggleSortOrder(2);
-		queueTable.addMouseListener(new MouseAdapter(){
-		    public void mouseClicked(MouseEvent evnt) {
-		        if (evnt.getClickCount() == 1) {
-		        	synchronized(this){
-			        	int r = queueTable.getSelectedRow();
-			        	int row = queueTable.convertRowIndexToModel(r);
-			        	
-			        	for(int i = vulnModel.getRowCount()-1; i >=0; i--){
-							vulnModel.removeRow(i);
-							
-						}
-			        	appId = ""+asmtModel.getValueAt(row, 0);
-			        	asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
-			        	asmtName.setEditable(false);
-			        	String NotesStr = Notes.get(row) == null ? "" : ""+Notes.get(row);
-			        	String [] notes = NotesStr.split("<!--Split-->");
-			        	notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
-			        	if(notes.length==2)
-			        		notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
-			        	JSONArray json = new JSONArray();
-						try {
-							json = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
-						} catch (UnsupportedEncodingException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-			        	for(int i = 0; i<json.size(); i++){
-			        		JSONObject obj = (JSONObject) json.get(i);
-			        		Vector v = new Vector();
-			        		v.add(obj.get("Name"));
-			        		v.add(obj.get("OverallStr"));
-			        		v.add(obj.get("ImpactStr"));
-			        		v.add(obj.get("LikelyhoodStr"));
-			        		v.add(obj.get("Opened"));
-			        		v.add(obj.get("Closed"));
-			        		v.add(obj.get("Id"));
-			        		vulnModel.addRow(v);
-			        	}
-			        	
-			        	
-			         }
-		        }
-		     }}
-		    );
+		queueTable.getSelectionModel().addListSelectionListener(
+			new ListSelectionListener(){
+        	public void valueChanged(ListSelectionEvent event) {
+				if(!event.getValueIsAdjusting() && queueTable.getSelectedRow() != -1){
+					int r = queueTable.getSelectedRow();
+					int row = queueTable.convertRowIndexToModel(r);
+					
+					for(int i = vulnModel.getRowCount()-1; i >=0; i--){
+						vulnModel.removeRow(i);
+					}
+					appId = ""+asmtModel.getValueAt(row, 0);
+					asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
+					asmtName.setEditable(false);
+					String NotesStr = Notes.get(appId) == null ? "" : ""+Notes.get(appId);
+					String [] notes = NotesStr.split("<!--Split-->");
+					notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
+					if(notes.length==2)
+						notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
+					JSONArray json = new JSONArray();
+					try {
+						json = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+					} catch (UnsupportedEncodingException e) {
+						e.printStackTrace();
+					}
+					for(int i = 0; i<json.size(); i++){
+						JSONObject obj = (JSONObject) json.get(i);
+						Vector v = new Vector();
+						v.add(obj.get("Name"));
+						v.add(obj.get("OverallStr"));
+						v.add(obj.get("ImpactStr"));
+						v.add(obj.get("LikelyhoodStr"));
+						v.add(obj.get("Opened"));
+						v.add(obj.get("Closed"));
+						v.add(obj.get("Id"));
+						vulnModel.addRow(v);
+					}
+					
+					
+					}
+			}}
+		);
 		scrollPane_4.setViewportView(queueTable);
 		
 		JPanel asmtPanel = new JPanel();
@@ -419,7 +423,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		        int realRow = table.convertRowIndexToModel(row);
 		        
 		        String status = "" + table.getModel().getValueAt(realRow, col);
-				Integer sevId = factionApi.getLevelMap().get(status.toLowerCase());
+				Integer sevId = levelMap.get(status.toLowerCase());
 				if(sevId == null){
 		        	if(row%2==0){
 			            setBackground(table.getBackground());  
@@ -476,23 +480,22 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		        return this;
 		    }   
 		});
-		vulnTable.addMouseListener(new MouseAdapter(){
-		    public void mouseClicked(MouseEvent evnt) {
-		        if (evnt.getClickCount() == 1) {
-		        	synchronized(this){
+		vulnTable.getSelectionModel().addListSelectionListener(
+			new ListSelectionListener(){
+        	public void valueChanged(ListSelectionEvent event) {
+				if(!event.getValueIsAdjusting() && vulnTable.getSelectedRow() != -1){
 			        	int r = vulnTable.getSelectedRow();
 			        	int row = vulnTable.convertRowIndexToModel(r);
-			        	Long vid = (Long)vulnModel.getValueAt(row, 6);
-			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
-			        	JSONObject j = (JSONObject)json.get(0);
-			        	VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
-			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-			        	test.setSize(900, 1000);
-			        	test.setVisible(true);
+						Long vid = (Long)vulnModel.getValueAt(row, 6);
+						JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
+						JSONObject j = (JSONObject)json.get(0);
+						VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
+						test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+						test.setSize(900, 1000);
+						test.setVisible(true);
 		        	}
 		        	
 		        }
-		    }
 		});
 		
 		scrollPane_1.setViewportView(vulnTable);
@@ -519,7 +522,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		ConfigPanel.add(tokenTxt);
 		tokenTxt.setColumns(10);
 		
-		JButton updateBtn = new JButton("Update");
+		JButton updateBtn = new JButton("Refresh");
 		updateBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
@@ -653,7 +656,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	}
 	
 	private synchronized void  updateAPI() {
-		
+		levelMap = factionApi.getLevelMap();	
 		/*
 		 * Get Verificaiton Queue
 		 */
@@ -685,28 +688,48 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 		/*
 		 * Update Assessment information.
 		 */
-		if(asmtModel.getRowCount() != json.size() || json.size() == 1 ){
-			Notes.clear();
-			for(int i = asmtModel.getRowCount()-1; i >=0; i--){
-				asmtModel.removeRow(i);
-				
+		for(int i = 0 ; i< json.size(); i++){
+			JSONObject obj = (JSONObject)json.get(i);
+			Vector vect = new Vector();
+			String appId = (String) obj.get("AppId");
+			vect.add(appId);
+			vect.add(obj.get("Name"));
+			vect.add(convertDate((String)obj.get("Start")));
+			vect.add(convertDate((String)obj.get("End")));
+			boolean found = false;	
+			for(int j = 0; j< asmtModel.getRowCount(); j++){
+				String id = (String) asmtModel.getValueAt(j, 0);
+				if(id.equals(appId)){
+					found = true;
+					break;
+				}
 			}
-			
-			
-			for(int i = 0 ; i< json.size(); i++){
-				JSONObject obj = (JSONObject)json.get(i);
-				Vector vect = new Vector();
-				vect.add(obj.get("AppId"));
-				vect.add(obj.get("Name"));
-				vect.add(convertDate((String)obj.get("Start")));
-				vect.add(convertDate((String)obj.get("End")));
+			if(!found){
 				asmtModel.addRow(vect);
-				String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
-				String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
-				Notes.add(creds + "<!--Split-->" + notes);
-				
+			}
+			String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
+			String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
+			Notes.put(appId, creds + "<!--Split-->" + notes);
+		}
+		/*
+		 * Check if we need to remove any assessments
+		 */
+		for(int j =asmtModel.getRowCount()-1; j>=0; j--){
+			boolean found = false;
+			String appId = ""+asmtModel.getValueAt(j, 0);
+			for(int i = 0; i<json.size(); i++){
+				JSONObject obj = (JSONObject) json.get(i);
+				String jsonId = ""+obj.get("AppId");
+				if(appId.equals(jsonId)){
+					found = true;
+					break;
+				}
+			}
+			if(!found){
+				asmtModel.removeRow(j);
 			}
 		}
+
 		/*
 		 * Add Only new findings to the table if an application is selected.
 		 */
@@ -738,12 +761,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
         		}
         		
         		if(!found){
-        			
-					//InputStream is= this.getClass().getResourceAsStream("/com/fuse/gui/newvuln.wav");
-					//playSoundInternal(is);
-        			
         			vulnModel.insertRow(0, v);
-   
         		}
         	}
         	//remove vulns no longer in table
@@ -759,8 +777,6 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
             		}
         		}
     			if(!found){
-    				//InputStream is=this.getClass().getResourceAsStream("/com/fuse/gui/delvuln.wav");
-					//playSoundInternal(is);
     				vulnModel.removeRow(j);
     				
     			}
@@ -787,5 +803,9 @@ public class FactionGUI extends JPanel implements IExtensionStateListener  {
 	}
 	public String getAppId(){
 		return this.appId;
+	}
+
+	public FactionAPI getFactionApi(){
+		return this.factionApi;
 	}
 }
