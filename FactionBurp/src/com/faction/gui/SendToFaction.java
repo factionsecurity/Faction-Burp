@@ -126,7 +126,6 @@ public class SendToFaction {
 	private void initialize() {
 		levels = factionApi.getLevelMap();
 		frame = new JFrame();
-		//frame.setIconImage(Toolkit.getDefaultToolkit().getImage(SendToFaction.class.getResource("/com/fuse/gui/tri-fuse.png")));
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.setBounds(100, 100, 797, 777);
 		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

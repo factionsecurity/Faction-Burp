@@ -208,7 +208,7 @@ public class FactionAPI {
 					.withService(service)
 					.withHeader("Host", targetHost)
 					.withMethod("POST")
-					.withPath(targetPath)
+					.withPath(targetPath + targetURL)
 					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
 					.withAddedHeader("Content-Language", "en-US")
 					.withAddedHeader("Accept", "application/json")
