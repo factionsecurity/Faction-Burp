@@ -33,22 +33,24 @@ public class FactionAPI {
 
 	private String SERVER = "";
 	private String TOKEN = "";
+	private String PORT = "8090"; // Initialiser PORT avec une chaîne
+// Valeur par défaut pour HTTP, 443 pour HTTPS par exemple
 	private Integer refresh;
 	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap();
 	private int highSev = 4;
 	private int medSev = 3;
 	private int lowSev = 2;
 	private int infoSev = 0;
-	public static final String ADDVULN = "/assessments/addVuln/";
-	public static final String ADDDEFAULTVULN = "/assessments/addDefaultVuln/";
-	public static final String SEARCH_DEFAULT_VULN = "/vulnerabilities/default/";
-	public static final String QUEUE = "/assessments/queue";
-	public static final String VQUEUE = "/verifications/queue";
-	public static final String GETVULN = "/assessments/vuln/";
-	public static final String GETVULNS = "/assessments/vulns/";
-	public static final String SETNOTE = "/assessments/notes/";
-	public static final String HISTORY = "/assessments/history/";
-	public static final String LEVELS = "/vulnerabilities/getrisklevels/";
+	public static final String ADDVULN = "/api/assessments/addVuln/";
+	public static final String ADDDEFAULTVULN = "/api/assessments/addDefaultVuln/";
+	public static final String SEARCH_DEFAULT_VULN = "/api/vulnerabilities/default/";
+	public static final String QUEUE = "/api/assessments/queue";
+	public static final String VQUEUE = "/api/verifications/queue";
+	public static final String GETVULN = "/api/assessments/vuln/";
+	public static final String GETVULNS = "/api/assessments/vulns/";
+	public static final String SETNOTE = "/api/assessments/notes/";
+	public static final String HISTORY = "/api/assessments/history/";
+	public static final String LEVELS = "/api/vulnerabilities/getrisklevels/";
 
 	public static final String BURP_SEV_HIGH = "high";
 	public static final String BURP_SEV_MED = "medium";
@@ -113,10 +115,12 @@ public class FactionAPI {
 	public void updateProps(String server, String token, String refresh) {
 		this.SERVER = server;
 		this.TOKEN = token;
+		this.PORT = PORT;
 		this.refresh = Integer.parseInt(refresh);
 		Properties props = this.getProps();
 		props.setProperty("server", server);
 		props.setProperty("token", token);
+		props.setProperty("port", PORT);
 		props.setProperty("refresh", refresh);
 		String path = System.getProperty("user.home") + File.separator + "/.faction" + File.separator;
 		File f = new File(path + "faction.properties");
@@ -147,15 +151,14 @@ public class FactionAPI {
 			e.printStackTrace();
 		}
 	}
-
 	public Properties getProps() {
 		Properties props = new Properties();
 		InputStream is = null;
-
+	
 		try {
 			String path = System.getProperty("user.home") + File.separator + "/.faction" + File.separator;
 			File f = new File(path + "faction.properties");
-
+	
 			if (!f.exists()) {
 				File p = new File(path);
 				if (!p.exists()) {
@@ -167,18 +170,20 @@ public class FactionAPI {
 			props.load(is);
 			this.SERVER = props.getProperty("server", "");
 			this.TOKEN = props.getProperty("token", "");
+			this.PORT = props.getProperty("port", "8090"); // Chargement du port
 			this.refresh = Integer.parseInt(props.getProperty("refresh", "20"));
 			this.highSev = Integer.parseInt(props.getProperty(BURP_SEV_HIGH, "4"));
 			this.medSev = Integer.parseInt(props.getProperty(BURP_SEV_MED, "3"));
 			this.lowSev = Integer.parseInt(props.getProperty(BURP_SEV_LOW, "2"));
 			this.infoSev = Integer.parseInt(props.getProperty(BURP_SEV_INFO, "0"));
+			// ... le reste de la méthode ...
 			return props;
 		} catch (Exception e) {
-			is = null;
+			e.printStackTrace();
+			return null;
 		}
-		return null;
-
 	}
+	
 
 	public LinkedHashMap<String, Integer> getLevelMap() {
 		JSONArray array = this.executeGet(LEVELS);
@@ -196,31 +201,56 @@ public class FactionAPI {
 
 	public JSONArray executePost(String targetURL, String postData) {
 		try {
-			logging.logToOutput("Sending Post");	
-			URL url = new URL(this.SERVER);
+			logging.logToOutput("Sending Post");
+			URL url = new URL(this.SERVER + ":" + this.PORT + targetURL); // Assurez-vous que l'URL est correcte
+			logging.logToOutput("URL: " + url.toString()); // Journaliser l'URL complète
 			String targetHost = url.getHost();
-			String targetPath = url.getPath();
-			boolean isSecure = url.getProtocol().equals("https") ;
-			HttpService service = HttpService
-					.httpService(targetHost, isSecure);
+			int portInt = Integer.parseInt(this.PORT);
+			boolean isSecure = url.getProtocol().equals("https");
+			HttpService service = HttpService.httpService(targetHost, portInt, isSecure);
+	
 			HttpRequest request = HttpRequest
 					.httpRequest()
 					.withService(service)
 					.withHeader("Host", targetHost)
 					.withMethod("POST")
-					.withPath(targetPath + targetURL)
+					.withPath(targetURL)
 					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
 					.withAddedHeader("Content-Language", "en-US")
 					.withAddedHeader("Accept", "application/json")
 					.withAddedHeader("Content-Type", "application/x-www-form-urlencoded")
 					.withBody(postData);
-			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{ 	
+	
+			// Journaliser les détails de la requête
+			logging.logToOutput("Request Headers: " + request.headers().toString());
+			logging.logToOutput("Request Body: " + postData);
+	
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() -> {
 				HttpRequestResponse response = http.sendRequest(request);
 				return response;
 			});
-
+	
 			HttpRequestResponse response = requestResponse.get();
-
+			logging.logToOutput("Sending request to: " + url.toString());
+			logging.logToOutput("Request Method: " + request.method().toString());
+			logging.logToOutput("Request Headers: " + request.headers().toString());
+			if (request.method().equals("POST")) {
+				logging.logToOutput("Request Body: " + postData); // Pour les requêtes POST uniquement
+			}
+			if (response != null && response.hasResponse()) {
+				logging.logToOutput("Received response with status code: " + response.response().statusCode());
+			
+				// Imprimer les en-têtes de réponse
+				logging.logToOutput("Response Headers: " + response.response().headers().toString());
+			
+				// Imprimer le corps de la réponse, s'il est présent
+				if (response.response().body() != null) {
+					logging.logToOutput("Response Body: " + response.response().bodyToString());
+				}
+			} else {
+				logging.logToOutput("No response received.");
+			}
+			
 			if (response.hasResponse() && response.response().statusCode() == 200) {
 				String jsonString = response.response().bodyToString();
 
@@ -246,28 +276,49 @@ public class FactionAPI {
 
 	public JSONArray executeGet(String targetURL) {
 		try {
-			URL url = new URL(this.SERVER);
+			URL url = new URL(this.SERVER + ":" + this.PORT + targetURL); // Assurez-vous que l'URL est correcte
+			logging.logToOutput("URL: " + url.toString()); // Journaliser l'URL complète
 			String targetHost = url.getHost();
-			String targetPath = url.getPath();
-			boolean isSecure = url.getProtocol().equals("https") ;
-			HttpService service = HttpService
-					.httpService(targetHost, isSecure);
+			int portInt = Integer.parseInt(this.PORT);
+			boolean isSecure = url.getProtocol().equals("https");
+			HttpService service = HttpService.httpService(targetHost, portInt, isSecure);
+	
 			HttpRequest request = HttpRequest
 					.httpRequest()
 					.withService(service)
 					.withHeader("Host", targetHost)
 					.withMethod("GET")
-					.withPath(targetPath + targetURL.replace("+", "%20"))
+					.withPath(targetURL.replace("+", "%20"))
 					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
 					.withAddedHeader("Content-Language", "en-US")
 					.withAddedHeader("Accept", "application/json");
-
-			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{ 	
+	
+			// Journaliser les détails de la requête
+			logging.logToOutput("Request Headers: " + request.headers().toString());
+	
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() -> {
 				HttpRequestResponse response = http.sendRequest(request);
 				return response;
 			});
+			logging.logToOutput("Sending request to: " + url.toString());
+			logging.logToOutput("Request Method: " + request.method().toString());
+			logging.logToOutput("Request Headers: " + request.headers().toString());
 
+			
 			HttpRequestResponse response = requestResponse.get();
+			if (response != null && response.hasResponse()) {
+				logging.logToOutput("Received response with status code: " + response.response().statusCode());
+			
+				// Imprimer les en-têtes de réponse
+				logging.logToOutput("Response Headers: " + response.response().headers().toString());
+			
+				// Imprimer le corps de la réponse, s'il est présent
+				if (response.response().body() != null) {
+					logging.logToOutput("Response Body: " + response.response().bodyToString());
+				}
+			} else {
+				logging.logToOutput("No response received.");
+			}
 			if (response.hasResponse() && response.response().statusCode() == 200) {
 				JSONParser parser = new JSONParser();
 				try {
@@ -288,7 +339,10 @@ public class FactionAPI {
 	}
 
 	public String getCSS() {
-		return SERVER.replace("api", "") + "service/rd_styles.css";
+		// Cette version suppose que SERVER inclut le protocole, l'hôte et le port si nécessaire.
+		// Elle ajoute simplement le chemin approprié au fichier CSS, sans tenter de remplacer ou d'ajuster "api".
+		return SERVER + "/service/rd_styles.css";
 	}
+	
 
 }

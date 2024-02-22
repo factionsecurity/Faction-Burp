@@ -39,6 +39,7 @@ import java.awt.Component;
 import javax.swing.Box;
 import java.awt.Dimension;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.LineBorder;
 import java.awt.Color;
 import javax.swing.JButton;
@@ -254,6 +255,7 @@ public class SendToFaction {
 		searchPanel.add(lblSearch, gbc_lblSearch);
 		
 		vulnSearch = new JTextField();
+		/*
 		vulnSearch.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyTyped(KeyEvent arg0) {
@@ -294,7 +296,34 @@ public class SendToFaction {
 				}
 				
 			}
+		}); */
+		vulnSearch.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyReleased(KeyEvent e) { // Changed from keyTyped to keyReleased
+				SwingUtilities.invokeLater(new Runnable() { // Ensure updates are made on the EDT
+					public void run() {
+						if(vulnSearch.getText().length() >= 2){
+							// Perform the search and update the JComboBox
+							JSONArray jarray = factionApi.executeGet(FactionAPI.SEARCH_DEFAULT_VULN + vulnSearch.getText());
+							DefaultComboBoxModel model = (DefaultComboBoxModel) defaultVulns.getModel();
+							model.removeAllElements(); // Clear existing items
+							_defaultVulns.clear();
+							for(int i=0; i< jarray.size(); i++){
+								JSONObject obj = (JSONObject)jarray.get(i);
+								String itemName = ""+obj.get("Name");
+								model.addElement(itemName);
+								_defaultVulns.put(itemName, obj);
+							}
+						} else {
+							DefaultComboBoxModel model = (DefaultComboBoxModel) defaultVulns.getModel();
+							model.removeAllElements(); // Clear if search text is less than 2
+							_defaultVulns.clear();
+						}
+					}
+				});
+			}
 		});
+
 		GridBagConstraints gbc_vulnSearch = new GridBagConstraints();
 		gbc_vulnSearch.insets = new Insets(0, 0, 5, 0);
 		gbc_vulnSearch.fill = GridBagConstraints.HORIZONTAL;
@@ -547,7 +576,7 @@ public class SendToFaction {
 		gbc_rigidArea_3.gridy = 8;
 		frame.getContentPane().add(rigidArea_3, gbc_rigidArea_3);
 		
-		asmts = factionApi.executeGet("/assessments/queue");
+		asmts = factionApi.executeGet("/api/assessments/queue");
 		for(int i=0; i< asmts.size(); i++){
 			JSONObject obj = (JSONObject)asmts.get(i);
 			assessmentList.addItem(obj.get("AppId") + " " + obj.get("Name"));
