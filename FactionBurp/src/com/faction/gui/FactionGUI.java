@@ -159,7 +159,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 			        	int row = verTable.convertRowIndexToModel(r);
 			        	
 			        	Long vid = (Long)verModel.getValueAt(row, 4);
-			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
+			        	JSONArray json = factionApi.executeGet("/api/assessments/vuln/" + vid);
 			        	JSONObject j = (JSONObject)json.get(0);
 			        	VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), (String)j.get("Details"), legacyCallback);
 			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -241,7 +241,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 						notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
 					JSONArray json = new JSONArray();
 					try {
-						json = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+						json = factionApi.executeGet("/api/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
 					} catch (UnsupportedEncodingException e) {
 						e.printStackTrace();
 					}
@@ -410,7 +410,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 			        	int r = vulnTable.getSelectedRow();
 			        	int row = vulnTable.convertRowIndexToModel(r);
 						Long vid = (Long)vulnModel.getValueAt(row, 6);
-						JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
+						JSONArray json = factionApi.executeGet("/api/assessments/vuln/" + vid);
 						JSONObject j = (JSONObject)json.get(0);
 						VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
 						test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -659,7 +659,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		if(!appId.equals("")){
 			JSONArray vulns = new JSONArray();
 			try {
-				vulns = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+				vulns = factionApi.executeGet("/api/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
 			} catch (UnsupportedEncodingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
