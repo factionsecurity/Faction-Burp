@@ -196,7 +196,10 @@ public class FactionAPI {
 
 	public JSONArray executePost(String targetURL, String postData) {
 		try {
-			logging.logToOutput("Sending Post");	
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONArray();
+			}
 			URL url = new URL(this.SERVER);
 			String targetHost = url.getHost();
 			String targetPath = url.getPath();
@@ -246,6 +249,10 @@ public class FactionAPI {
 
 	public JSONArray executeGet(String targetURL) {
 		try {
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONArray();
+			}
 			URL url = new URL(this.SERVER);
 			String targetHost = url.getHost();
 			String targetPath = url.getPath();
@@ -287,8 +294,5 @@ public class FactionAPI {
 		}
 	}
 
-	public String getCSS() {
-		return SERVER.replace("api", "") + "service/rd_styles.css";
-	}
 
 }
