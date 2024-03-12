@@ -2,6 +2,7 @@ package com.faction.gui;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Desktop;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -43,7 +44,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -85,8 +88,6 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 	private Timer refreshTimer;
 	private String appId = "";
 	private JTable verTable;
-	private JTextField txtHttpsgithubcomfactionsecurityfaction;
-	private JTextField txtHttpswwwfactionsecuritycom;
 	private Logging logging;
 	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap<>();
 
@@ -182,6 +183,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		
 		JButton updateVerBtn = new JButton("Refresh");
 		panel_4.add(updateVerBtn);
+		JLabel btnVerDesc = new JLabel("Select a retest above to view its details");
+		panel_4.add(btnVerDesc);
 		
 		JPanel panel_5 = new JPanel();
 		combinedQueue.setLeftComponent(panel_5);
@@ -208,7 +211,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		gbc_panel_6.gridy = 1;
 		panel_5.add(panel_6, gbc_panel_6);
 		
-		JButton btnNewButton = new JButton("Update");
+		JButton btnNewButton = new JButton("Refresh");
 		panel_6.add(btnNewButton);
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -216,6 +219,9 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 
 			}
 		});
+		
+		JLabel btnDesc = new JLabel("Select an assessment above to update the assessment tab");
+		panel_6.add(btnDesc);
 
 		queueTable = new JTable();
 		queueTable.setAutoCreateRowSorter(true);
@@ -445,7 +451,7 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		ConfigPanel.add(tokenTxt);
 		tokenTxt.setColumns(10);
 		
-		JButton updateBtn = new JButton("Refresh");
+		JButton updateBtn = new JButton("Update");
 		updateBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
@@ -542,21 +548,39 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 				lblNewLabel_6.setBounds(514, 96, 61, 16);
 				ConfigPanel.add(lblNewLabel_6);
 				
-				txtHttpsgithubcomfactionsecurityfaction = new JTextField();
-				txtHttpsgithubcomfactionsecurityfaction.setText("https://github.com/factionsecurity/faction");
-				txtHttpsgithubcomfactionsecurityfaction.setBounds(587, 91, 439, 26);
-				ConfigPanel.add(txtHttpsgithubcomfactionsecurityfaction);
-				txtHttpsgithubcomfactionsecurityfaction.setColumns(10);
+				JButton btnGithub = new JButton();
+				btnGithub.setText("https://github.com/factionsecurity/faction");
+				btnGithub.setBounds(587, 91, 439, 26);
+				btnGithub.addActionListener(new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						try {
+							Desktop.getDesktop().browse(new java.net.URL("https://github.com/factionsecurity/faction").toURI());
+						} catch (IOException | URISyntaxException e1) {
+							e1.printStackTrace();
+						}
+
+					}
+				});
+				ConfigPanel.add(btnGithub);
 				
 				JLabel lblNewLabel_7 = new JLabel("WebSite");
 				lblNewLabel_7.setBounds(514, 132, 61, 16);
 				ConfigPanel.add(lblNewLabel_7);
 				
-				txtHttpswwwfactionsecuritycom = new JTextField();
-				txtHttpswwwfactionsecuritycom.setText("https://www.factionsecurity.com");
-				txtHttpswwwfactionsecuritycom.setColumns(10);
-				txtHttpswwwfactionsecuritycom.setBounds(587, 127, 439, 26);
-				ConfigPanel.add(txtHttpswwwfactionsecuritycom);
+				JButton btnFaction = new JButton();
+				btnFaction.setText("https://www.factionsecurity.com");
+				btnFaction.setBounds(587, 127, 439, 26);
+				ConfigPanel.add(btnFaction);
+				btnFaction.addActionListener(new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						try {
+							Desktop.getDesktop().browse(new java.net.URL("https://www.factionsecurity.com").toURI());
+						} catch (IOException | URISyntaxException e1) {
+							e1.printStackTrace();
+						}
+
+					}
+				});
 				
 				JLabel lblNewLabel_8 = new JLabel("Server Configuration");
 				lblNewLabel_8.setFont(new Font("Lucida Grande", Font.BOLD, 18));
