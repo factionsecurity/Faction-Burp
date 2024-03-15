@@ -258,8 +258,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 						v.add(obj.get("OverallStr"));
 						v.add(obj.get("ImpactStr"));
 						v.add(obj.get("LikelyhoodStr"));
-						v.add(obj.get("Opened"));
-						v.add(obj.get("Closed"));
+						v.add(convertDate((String)obj.get("Opened")));
+						v.add(convertDate((String)obj.get("Closed")));
 						v.add(obj.get("Id"));
 						vulnModel.addRow(v);
 					}
@@ -695,8 +695,8 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
         		v.add(obj.get("OverallStr"));
         		v.add(obj.get("ImpactStr"));
         		v.add(obj.get("LikelyhoodStr"));
-        		v.add(obj.get("Opened"));
-        		v.add(obj.get("Closed"));
+        		v.add(convertDate((String)obj.get("Opened")));
+        		v.add(convertDate((String)obj.get("Closed")));
         		v.add(obj.get("Id"));
         		boolean found=false;
         		
