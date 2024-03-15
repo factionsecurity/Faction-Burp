@@ -2,6 +2,8 @@ package com.faction.gui;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
 
 import javax.swing.JTable;
@@ -18,10 +20,17 @@ public class CustomCellRenderer extends DefaultTableCellRenderer {
 
 		super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
 		int realRow = table.convertRowIndexToModel(row);
+		
+		if((row == 4 || row == 5)) {
+			Date date = new Date( (long) value); 
+			// the format of your date
+			SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd-MM-yyyy");
+			String formattedDate = sdf.format(date);
+			setValue(formattedDate);
+		}
 
 		String status = "" + table.getModel().getValueAt(realRow, col);
 		Integer sevId = levelMap.get(status.toLowerCase());
-		System.out.println("here");
 		if (sevId == null) {
 			if (row % 2 == 0) {
 				setBackground(table.getBackground());
