@@ -203,9 +203,10 @@ public class FactionAPI {
 			URL url = new URL(this.SERVER);
 			String targetHost = url.getHost();
 			String targetPath = url.getPath();
+			int port = url.getPort();
 			boolean isSecure = url.getProtocol().equals("https") ;
 			HttpService service = HttpService
-					.httpService(targetHost, isSecure);
+					.httpService(targetHost, port, isSecure);
 			HttpRequest request = HttpRequest
 					.httpRequest()
 					.withService(service)
@@ -256,9 +257,10 @@ public class FactionAPI {
 			URL url = new URL(this.SERVER);
 			String targetHost = url.getHost();
 			String targetPath = url.getPath();
+			int port = url.getPort();
 			boolean isSecure = url.getProtocol().equals("https") ;
 			HttpService service = HttpService
-					.httpService(targetHost, isSecure);
+					.httpService(targetHost, port, isSecure);
 			HttpRequest request = HttpRequest
 					.httpRequest()
 					.withService(service)
