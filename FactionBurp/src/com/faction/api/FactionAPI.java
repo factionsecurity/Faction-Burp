@@ -46,6 +46,8 @@ public class FactionAPI {
 	public static final String VQUEUE = "/verifications/queue";
 	public static final String GETVULN = "/assessments/vuln/";
 	public static final String GETVULNS = "/assessments/vulns/";
+	public static final String CUSTOMFIELDS = "/assessments/customfields/";
+	public static final String IMAGE = "/assessments/image/";
 	public static final String SETNOTE = "/assessments/notes/";
 	public static final String HISTORY = "/assessments/history/";
 	public static final String LEVELS = "/vulnerabilities/getrisklevels/";
@@ -304,6 +306,126 @@ public class FactionAPI {
 			e.printStackTrace();
 			logging.logToError(e.getMessage());
 			return new JSONArray();
+		}
+	}
+
+	/**
+	 * Same as executePost but for endpoints that return a JSON object instead of
+	 * an array (e.g. /assessments/image/{aid}).
+	 */
+	public JSONObject executePostObject(String targetURL, String postData) {
+		try {
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONObject();
+			}
+			URL url = new URL(this.SERVER);
+			String targetHost = url.getHost();
+			String targetPath = url.getPath();
+			boolean isSecure = url.getProtocol().equals("https") ;
+			int port = url.getPort();
+			if(port == -1 && isSecure) {
+				port = 443;
+			}else if (port == -1) {
+				port = 80;
+			}
+
+			HttpService service = HttpService
+					.httpService(targetHost, port, isSecure);
+			HttpRequest request = HttpRequest
+					.httpRequest()
+					.withService(service)
+					.withHeader("Host", targetHost)
+					.withMethod("POST")
+					.withPath(targetPath + targetURL)
+					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
+					.withAddedHeader("Content-Language", "en-US")
+					.withAddedHeader("Accept", "application/json")
+					.withAddedHeader("Content-Type", "application/x-www-form-urlencoded")
+					.withBody(postData);
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
+				HttpRequestResponse response = http.sendRequest(request);
+				return response;
+			});
+
+			HttpRequestResponse response = requestResponse.get();
+
+			if (response.hasResponse() && response.response().statusCode() == 200) {
+				String jsonString = response.response().bodyToString();
+				JSONParser parser = new JSONParser();
+				try {
+					JSONObject json = (JSONObject) parser.parse(jsonString);
+					return json;
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+					logging.logToError(e1.getMessage());
+					return new JSONObject();
+				}
+			}else{
+				logging.logToError("No Response From Faction");
+				return new JSONObject();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			logging.logToError(e.getMessage());
+			return new JSONObject();
+		}
+	}
+
+	/**
+	 * Same as executeGet but for endpoints that return a JSON object instead of
+	 * an array (e.g. /assessments/customfields/{aid} and /assessments/vuln/{vid}).
+	 */
+	public JSONObject executeGetObject(String targetURL) {
+		try {
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONObject();
+			}
+			URL url = new URL(this.SERVER);
+			String targetHost = url.getHost();
+			String targetPath = url.getPath();
+			boolean isSecure = url.getProtocol().equals("https") ;
+			int port = url.getPort();
+			if(port == -1 && isSecure) {
+				port = 443;
+			}else if (port == -1) {
+				port = 80;
+			}
+			HttpService service = HttpService
+					.httpService(targetHost, port, isSecure);
+			HttpRequest request = HttpRequest
+					.httpRequest()
+					.withService(service)
+					.withHeader("Host", targetHost)
+					.withMethod("GET")
+					.withPath(targetPath + targetURL.replace("+", "%20"))
+					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
+					.withAddedHeader("Content-Language", "en-US")
+					.withAddedHeader("Accept", "application/json");
+
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
+				HttpRequestResponse response = http.sendRequest(request);
+				return response;
+			});
+
+			HttpRequestResponse response = requestResponse.get();
+			if (response.hasResponse() && response.response().statusCode() == 200) {
+				JSONParser parser = new JSONParser();
+				try {
+					JSONObject json = (JSONObject) parser.parse(response.response().bodyToString());
+					return json;
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+					logging.logToError(e1.getMessage());
+				}
+			}
+			logging.logToError("No Response From Faction");
+			return new JSONObject();
+		} catch (Exception e) {
+			e.printStackTrace();
+			logging.logToError(e.getMessage());
+			return new JSONObject();
 		}
 	}
 

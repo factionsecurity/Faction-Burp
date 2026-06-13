@@ -56,7 +56,12 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.border.EtchedBorder;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Files;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.JScrollPane;
 
 import org.commonmark.node.*;
@@ -90,6 +95,8 @@ public class SendToFaction {
 	private JScrollPane scrollPane;
 	private JPanel panel_1;
 	private boolean isScan;
+	private JPanel customFieldsPanel;
+	private LinkedHashMap<String, Component> customFieldComponents = new LinkedHashMap<>();
 	
 	/**
 	 * Create the application.
@@ -127,12 +134,12 @@ public class SendToFaction {
 		levels = factionApi.getLevelMap();
 		frame = new JFrame();
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.setBounds(100, 100, 797, 777);
+		frame.setBounds(100, 100, 1080, 777);
 		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		GridBagLayout gridBagLayout = new GridBagLayout();
-		gridBagLayout.columnWidths = new int[]{0, 130, 0, 0, 0};
+		gridBagLayout.columnWidths = new int[]{0, 130, 0, 260, 0};
 		gridBagLayout.rowHeights = new int[]{0, 0, 0, 0, 0, 1, 0, 0, 0, 0};
-		gridBagLayout.columnWeights = new double[]{0.0, 0.0, 1.0, 0.0, Double.MIN_VALUE};
+		gridBagLayout.columnWeights = new double[]{0.0, 0.0, 1.0, 1.0, Double.MIN_VALUE};
 		gridBagLayout.rowWeights = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, Double.MIN_VALUE};
 		frame.getContentPane().setLayout(gridBagLayout);
 		
@@ -179,9 +186,12 @@ public class SendToFaction {
 		JComboBox assessmentList = new JComboBox();
 		assessmentList.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
+				int index = assessmentList.getSelectedIndex();
+				if(index < 0 || asmts == null || index >= asmts.size())
+					return;
+				JSONObject obj = (JSONObject)asmts.get(index);
+				loadCustomFields("" + obj.get("Id"));
 				if(!isNew){
-					int index = assessmentList.getSelectedIndex();
-					JSONObject obj = (JSONObject)asmts.get(index);
 					vulns = factionApi.executeGet(FactionAPI.GETVULNS + obj.get("Id"));
 					vulnList.removeAllItems();
 					for(int i=0; i< vulns.size(); i++){
@@ -190,12 +200,12 @@ public class SendToFaction {
 					}
 					if(vulns.size() == 0){
 						btnSave.setEnabled(false);
-						
+
 					}else{
 						btnSave.setEnabled(true);
 					}
-					
-					
+
+
 				}
 			}
 		});
@@ -217,6 +227,15 @@ public class SendToFaction {
 			frame.getContentPane().add(lblVulnerability, gbc_lblVulnerability);
 			
 			vulnList = new JComboBox();
+			vulnList.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent arg0) {
+					int index = vulnList.getSelectedIndex();
+					if(index < 0 || vulns == null || index >= vulns.size())
+						return;
+					JSONObject vuln = (JSONObject)vulns.get(index);
+					prefillCustomFields("" + vuln.get("Id"));
+				}
+			});
 			GridBagConstraints gbc_vulnList = new GridBagConstraints();
 			gbc_vulnList.insets = new Insets(0, 0, 5, 5);
 			gbc_vulnList.fill = GridBagConstraints.HORIZONTAL;
@@ -428,25 +447,55 @@ public class SendToFaction {
 		frame.getContentPane().add(panel_1, gbc_panel_1);
 		GridBagLayout gbl_panel_1 = new GridBagLayout();
 		gbl_panel_1.columnWidths = new int[]{130, 0, 0};
-		gbl_panel_1.rowHeights = new int[]{0, 0};
+		gbl_panel_1.rowHeights = new int[]{0, 0, 0};
 		gbl_panel_1.columnWeights = new double[]{1.0, 1.0, Double.MIN_VALUE};
-		gbl_panel_1.rowWeights = new double[]{1.0, Double.MIN_VALUE};
+		gbl_panel_1.rowWeights = new double[]{0.0, 1.0, Double.MIN_VALUE};
 		panel_1.setLayout(gbl_panel_1);
-		
+
+		JButton btnInsertImage = new JButton("Insert Image");
+		btnInsertImage.setToolTipText("Upload an image to the selected assessment and insert a markdown link at the cursor.");
+		btnInsertImage.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				int index = assessmentList.getSelectedIndex();
+				if(index < 0 || asmts == null || index >= asmts.size())
+					return;
+				JSONObject obj = (JSONObject)asmts.get(index);
+				uploadAndInsertImage("" + obj.get("Id"));
+			}
+		});
+		GridBagConstraints gbc_btnInsertImage = new GridBagConstraints();
+		gbc_btnInsertImage.anchor = GridBagConstraints.WEST;
+		gbc_btnInsertImage.insets = new Insets(0, 0, 5, 5);
+		gbc_btnInsertImage.gridx = 0;
+		gbc_btnInsertImage.gridy = 0;
+		panel_1.add(btnInsertImage, gbc_btnInsertImage);
+
 		scrollPane = new JScrollPane();
 		GridBagConstraints gbc_scrollPane = new GridBagConstraints();
 		gbc_scrollPane.fill = GridBagConstraints.BOTH;
 		gbc_scrollPane.gridwidth = 2;
 		gbc_scrollPane.insets = new Insets(0, 0, 0, 5);
 		gbc_scrollPane.gridx = 0;
-		gbc_scrollPane.gridy = 0;
+		gbc_scrollPane.gridy = 1;
 		panel_1.add(scrollPane, gbc_scrollPane);
 		
 		message_1 = new JEditorPane();
 		scrollPane.setViewportView(message_1);
 		message_1.setText("Enter Exploit Steps or Additional Informaiton here");
 		message_1.setContentType("text/plain");
-		
+
+		customFieldsPanel = new JPanel();
+		customFieldsPanel.setLayout(new GridBagLayout());
+		JScrollPane customFieldsScroll = new JScrollPane(customFieldsPanel);
+		customFieldsScroll.setBorder(new TitledBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null), "Custom Fields", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+		customFieldsScroll.getVerticalScrollBar().setUnitIncrement(12);
+		GridBagConstraints gbc_customFieldsScroll = new GridBagConstraints();
+		gbc_customFieldsScroll.fill = GridBagConstraints.BOTH;
+		gbc_customFieldsScroll.insets = new Insets(0, 0, 5, 5);
+		gbc_customFieldsScroll.gridx = 3;
+		gbc_customFieldsScroll.gridy = 6;
+		frame.getContentPane().add(customFieldsScroll, gbc_customFieldsScroll);
+
 		btnSave = new JButton("Save");
 		/*
 		 * This is the action listener that saves a new vuln
@@ -491,6 +540,9 @@ public class SendToFaction {
 								+ "&description=" + URLEncoder.encode(b64Description, "UTF-8")
 								+ "&recommendation="+ URLEncoder.encode(b64Recommendation, "UTF-8")
 								+ "&severity=" + factionApi.getSevMapping(baseIssue.severity().name());
+								String cf = customFieldsValue();
+								if(!cf.isEmpty())
+									postData += "&customFields=" + cf;
 								factionApi.executePost(FactionAPI.ADDVULN + obj.get("Id"), postData);
 							} catch (UnsupportedEncodingException ex){
 								System.out.println(ex.getMessage());
@@ -503,9 +555,12 @@ public class SendToFaction {
 						int index = assessmentList.getSelectedIndex();
 						JSONObject obj = (JSONObject)asmts.get(index);
 						try{
-							String postData = "name=" + URLEncoder.encode(name, "UTF-8") 
+							String postData = "name=" + URLEncoder.encode(name, "UTF-8")
 							+ "&feed=false&details=" + URLEncoder.encode(b64, "UTF-8");
 							postData+="&severity=" + levels.get(""+severity.getSelectedItem());
+							String cf = customFieldsValue();
+							if(!cf.isEmpty())
+								postData += "&customFields=" + cf;
 							if(_defaultVulns.size() > 0){
 								JSONObject vobj = _defaultVulns.get(defaultVulns.getSelectedItem());
 								factionApi.executePost(FactionAPI.ADDDEFAULTVULN + obj.get("Id") + "/" + vobj.get("Id"), postData);
@@ -527,7 +582,11 @@ public class SendToFaction {
 					String postData = "feed=false&details=" +URLEncoder.encode(b64);
 					postData+="&severity=" + levels.get(""+severity.getSelectedItem());
 					factionApi.executePost(FactionAPI.ADDVULN + aObj.get("Id") + "/" + vObj.get("Id"), postData);
-					
+
+					String cf = customFieldsValue();
+					if(!cf.isEmpty())
+						factionApi.executePost(FactionAPI.GETVULN + vObj.get("Id") + "/customfields", "customFields=" + cf);
+
 				}
 				
 				frame.dispose();
@@ -675,6 +734,235 @@ public class SendToFaction {
 		return _message.toString();
 	}
 	
+
+	/**
+	 * Prompts the user to choose an image file, uploads it to the assessment as
+	 * a base64 data URI, and inserts the returned markdown link into the exploit
+	 * steps editor at the current cursor position.
+	 */
+	private void uploadAndInsertImage(String aid){
+		JFileChooser chooser = new JFileChooser();
+		chooser.setDialogTitle("Select an Image to Upload");
+		chooser.setFileFilter(new FileNameExtensionFilter("Images (png, jpg, jpeg, gif, bmp, webp)", "png", "jpg", "jpeg", "gif", "bmp", "webp"));
+		if(chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION)
+			return;
+		File file = chooser.getSelectedFile();
+		try {
+			byte[] bytes = Files.readAllBytes(file.toPath());
+			String mime = Files.probeContentType(file.toPath());
+			if(mime == null || !mime.startsWith("image"))
+				mime = mimeFromName(file.getName());
+			String dataUri = "data:" + mime + ";base64," + new String(Base64.encode(bytes));
+			String postData = "encodedImage=" + URLEncoder.encode(dataUri, "UTF-8");
+			JSONObject resp = factionApi.executePostObject(FactionAPI.IMAGE + aid, postData);
+			String markdown = extractMarkdownLink(resp);
+			if(markdown == null || markdown.isEmpty()){
+				JOptionPane.showMessageDialog(frame, "Image upload failed or no link was returned.", "Upload Failed", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			int pos = message_1.getCaretPosition();
+			message_1.getDocument().insertString(pos, markdown, null);
+			message_1.setCaretPosition(pos + markdown.length());
+			message_1.requestFocusInWindow();
+		} catch (Exception ex) {
+			System.out.println(ex.getMessage());
+			JOptionPane.showMessageDialog(frame, "Error uploading image: " + ex.getMessage(), "Upload Error", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	private String mimeFromName(String name){
+		String n = name.toLowerCase();
+		if(n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+		if(n.endsWith(".gif")) return "image/gif";
+		if(n.endsWith(".bmp")) return "image/bmp";
+		if(n.endsWith(".webp")) return "image/webp";
+		if(n.endsWith(".svg")) return "image/svg+xml";
+		return "image/png";
+	}
+
+	/**
+	 * The image upload endpoint returns the GUID and a markdown link. The exact
+	 * key isn't pinned in the API docs, so try the likely names and fall back to
+	 * any value that looks like a markdown link.
+	 */
+	private String extractMarkdownLink(JSONObject resp){
+		if(resp == null)
+			return null;
+		String[] keys = {"markdown", "Markdown", "markdownLink", "MarkdownLink", "link", "Link", "url", "Url"};
+		for(String k : keys){
+			Object v = resp.get(k);
+			if(v != null && v.toString().contains("]("))
+				return v.toString();
+		}
+		for(Object v : resp.values()){
+			if(v != null && v.toString().contains("]("))
+				return v.toString();
+		}
+		return null;
+	}
+
+	/**
+	 * Pulls the allowed Vulnerability custom field definitions for the given
+	 * assessment and rebuilds the Custom Fields panel with the appropriate
+	 * widget for each field (text box, dropdown, or checkbox).
+	 */
+	private void loadCustomFields(String aid){
+		customFieldComponents.clear();
+		customFieldsPanel.removeAll();
+		JSONObject resp = factionApi.executeGetObject(FactionAPI.CUSTOMFIELDS + aid);
+		JSONArray fields = (JSONArray) resp.get("vulnerabilityFields");
+		int row = 0;
+		if(fields != null){
+			for(Object o : fields){
+				JSONObject f = (JSONObject)o;
+				String key = "" + f.get("Key");
+				String variable = "" + f.get("Variable");
+				String fieldType = f.get("FieldType") == null ? "String" : "" + f.get("FieldType");
+				String defaultValue = f.get("DefaultValue") == null ? "" : "" + f.get("DefaultValue");
+				boolean readonly = Boolean.TRUE.equals(f.get("Readonly"));
+
+				// Boolean fields are intentionally skipped for now.
+				if(fieldType.equalsIgnoreCase("Boolean"))
+					continue;
+
+				JLabel label = new JLabel(key + ":");
+				GridBagConstraints lg = new GridBagConstraints();
+				lg.anchor = GridBagConstraints.WEST;
+				lg.insets = new Insets(2, 2, 2, 5);
+				lg.gridx = 0;
+				lg.gridy = row;
+				customFieldsPanel.add(label, lg);
+
+				Component comp = createCustomFieldComponent(fieldType, defaultValue, readonly);
+				GridBagConstraints cg = new GridBagConstraints();
+				cg.fill = GridBagConstraints.HORIZONTAL;
+				cg.weightx = 1.0;
+				cg.insets = new Insets(2, 0, 2, 2);
+				cg.gridx = 1;
+				cg.gridy = row;
+				customFieldsPanel.add(comp, cg);
+
+				customFieldComponents.put(variable, comp);
+				row++;
+			}
+		}
+		// filler row to keep fields anchored to the top
+		GridBagConstraints filler = new GridBagConstraints();
+		filler.gridx = 0;
+		filler.gridy = row;
+		filler.gridwidth = 2;
+		filler.weighty = 1.0;
+		filler.fill = GridBagConstraints.BOTH;
+		customFieldsPanel.add(Box.createGlue(), filler);
+
+		customFieldsPanel.revalidate();
+		customFieldsPanel.repaint();
+	}
+
+	/**
+	 * Builds the input widget for a custom field based on its FieldType.
+	 * "List"  -> dropdown (options are comma separated in DefaultValue)
+	 * "Boolean" -> checkbox
+	 * anything else (e.g. "String") -> text field
+	 */
+	private Component createCustomFieldComponent(String fieldType, String defaultValue, boolean readonly){
+		Component comp;
+		if(fieldType.equalsIgnoreCase("Boolean")){
+			JCheckBox cb = new JCheckBox();
+			cb.setSelected(defaultValue.equalsIgnoreCase("true"));
+			cb.setEnabled(!readonly);
+			comp = cb;
+		}else if(fieldType.equalsIgnoreCase("List")){
+			JComboBox combo = new JComboBox();
+			combo.addItem("");
+			for(String opt : defaultValue.split(",")){
+				if(!opt.trim().isEmpty())
+					combo.addItem(opt.trim());
+			}
+			combo.setEnabled(!readonly);
+			comp = combo;
+		}else{
+			JTextField tf = new JTextField();
+			tf.setText(defaultValue);
+			tf.setColumns(10);
+			tf.setEnabled(!readonly);
+			comp = tf;
+		}
+		return comp;
+	}
+
+	/**
+	 * Loads an existing vulnerability's saved custom field values into the
+	 * panel (used when editing an existing vulnerability).
+	 */
+	private void prefillCustomFields(String vid){
+		if(customFieldComponents.isEmpty())
+			return;
+		JSONObject vuln = factionApi.executeGetObject(FactionAPI.GETVULN + vid);
+		JSONArray cfs = (JSONArray) vuln.get("CustomFields");
+		if(cfs == null)
+			return;
+		for(Object o : cfs){
+			JSONObject cf = (JSONObject)o;
+			String variable = "" + cf.get("Variable");
+			String value = cf.get("Value") == null ? "" : "" + cf.get("Value");
+			Component comp = customFieldComponents.get(variable);
+			if(comp == null)
+				continue;
+			setComponentValue(comp, value);
+		}
+	}
+
+	private void setComponentValue(Component comp, String value){
+		if(comp instanceof JCheckBox){
+			((JCheckBox)comp).setSelected(value.equalsIgnoreCase("true"));
+		}else if(comp instanceof JComboBox){
+			JComboBox combo = (JComboBox)comp;
+			boolean found = false;
+			for(int i = 0; i < combo.getItemCount(); i++){
+				if(value.equals("" + combo.getItemAt(i))){
+					found = true;
+					break;
+				}
+			}
+			if(!found && !value.isEmpty())
+				combo.addItem(value);
+			combo.setSelectedItem(value);
+		}else if(comp instanceof JTextField){
+			((JTextField)comp).setText(value);
+		}
+	}
+
+	/**
+	 * Serializes the current custom field widget values to a URL-encoded JSON
+	 * object keyed by each field's Variable. Returns "" when there are no
+	 * custom fields so callers can skip the parameter entirely.
+	 */
+	private String customFieldsValue(){
+		if(customFieldComponents.isEmpty())
+			return "";
+		JSONObject obj = new JSONObject();
+		for(Entry<String, Component> e : customFieldComponents.entrySet()){
+			Component comp = e.getValue();
+			String value;
+			if(comp instanceof JCheckBox)
+				value = ((JCheckBox)comp).isSelected() ? "true" : "false";
+			else if(comp instanceof JComboBox){
+				Object sel = ((JComboBox)comp).getSelectedItem();
+				value = sel == null ? "" : sel.toString();
+			}else if(comp instanceof JTextField)
+				value = ((JTextField)comp).getText();
+			else
+				value = "";
+			obj.put(e.getKey(), value);
+		}
+		try{
+			return URLEncoder.encode(obj.toJSONString(), "UTF-8");
+		}catch(UnsupportedEncodingException ex){
+			System.out.println(ex.getMessage());
+			return "";
+		}
+	}
 
 	public JCheckBox getOptReq() {
 		return optReq;

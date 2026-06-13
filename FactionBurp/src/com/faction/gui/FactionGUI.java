@@ -701,17 +701,28 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
         		v.add(convertDate((String)obj.get("Opened")));
         		v.add(convertDate((String)obj.get("Closed")));
         		v.add(obj.get("Id"));
-        		boolean found=false;
-        		
+        		int existingRow = -1;
+
         		for(int j =0; j<vulnModel.getRowCount(); j++){
         			if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
-        				found = true;
+        				existingRow = j;
         				break;
         			}
         		}
-        		
-        		if(!found){
+
+        		if(existingRow == -1){
         			vulnModel.insertRow(0, v);
+        		}else{
+        			// Row already exists: update any changed fields in place so that
+        			// severity/impact/likelihood/status refreshes are reflected (and
+        			// re-rendered/re-colored) instead of being skipped.
+        			for(int c = 0; c < v.size(); c++){
+        				Object newVal = v.get(c);
+        				Object curVal = vulnModel.getValueAt(existingRow, c);
+        				if(!(""+curVal).equals(""+newVal)){
+        					vulnModel.setValueAt(newVal, existingRow, c);
+        				}
+        			}
         		}
         	}
         	//remove vulns no longer in table
