@@ -657,19 +657,19 @@ public class SendToFaction {
 			data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 			if(this.optReq.isSelected()){
 				_message.append("<b>Request: </b>");
-				_message.append("<pre class='code'>");
+				_message.append("<pre class='code'><code>");
 				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 				_message.append(data);
-				_message.append("</pre>");
+				_message.append("</code></pre>");
 			}
 			if(this.optResp.isSelected()){
 				data = StringEscapeUtils.escapeHtml(response.toString());
 				data = data.replaceAll("\r", "").replaceAll("\n", "<br/>");
 				_message.append("<b>Response: </b>");
-				_message.append("<pre class='code'>");
+				_message.append("<pre class='code'><code>");
 				data = data.replace("[ ...snip... ]", "<b>[ ...snip... ]</b>");
 				_message.append(data);
-				_message.append("</pre>");
+				_message.append("</code></pre>");
 			}
 		});
 		return _message.toString();

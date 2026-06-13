@@ -409,24 +409,27 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		vulnTable.getColumnModel().getColumn(6).setMaxWidth(50);
 		
 		vulnTable.setDefaultRenderer(Object.class, new CustomCellRenderer(this.levelMap) );
-		vulnTable.getSelectionModel().addListSelectionListener(
-			new ListSelectionListener(){
-        	public void valueChanged(ListSelectionEvent event) {
-				if(!event.getValueIsAdjusting() && vulnTable.getSelectedRow() != -1){
-			        	int r = vulnTable.getSelectedRow();
-			        	int row = vulnTable.convertRowIndexToModel(r);
-						Long vid = (Long)vulnModel.getValueAt(row, 6);
+		vulnTable.addMouseListener(new MouseAdapter() {
+		    @Override
+		    public void mouseClicked(MouseEvent e) {
+		    	 if (e.getClickCount() == 2 && !e.isConsumed()) {
+		             e.consume(); // Prevent further processing of this event
+					int row = vulnTable.rowAtPoint(e.getPoint());
+					if (row >= 0) {
+						// If table is sorted, convert view row index to model index
+						int modelRow = vulnTable.convertRowIndexToModel(row);
+						Long vid = (Long)vulnModel.getValueAt(modelRow, 6);
 						JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
 						JSONObject j = (JSONObject)json.get(0);
 						VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
 						test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 						test.setSize(900, 1000);
 						test.setVisible(true);
-		        	}
-		        	
-		        }
+
+					}
+		    	 }
+		    }
 		});
-		
 		scrollPane_1.setViewportView(vulnTable);
 		
 		JPanel ConfigPanel = new JPanel();
