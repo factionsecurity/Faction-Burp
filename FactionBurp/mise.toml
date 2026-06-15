@@ -1,0 +1,4 @@
+
+[tasks."build:jar"]
+description = "Build: Maven Build with Dependencies"
+run = "mvn clean compile assembly:single"
