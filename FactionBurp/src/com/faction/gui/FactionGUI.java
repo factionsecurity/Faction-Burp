@@ -58,6 +58,7 @@ import java.util.TimerTask;
 import java.util.Vector;
 
 import javax.swing.Box;
+import javax.swing.SwingUtilities;
 
 import java.awt.Dimension;
 import java.awt.Font;
@@ -409,24 +410,27 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 		vulnTable.getColumnModel().getColumn(6).setMaxWidth(50);
 		
 		vulnTable.setDefaultRenderer(Object.class, new CustomCellRenderer(this.levelMap) );
-		vulnTable.getSelectionModel().addListSelectionListener(
-			new ListSelectionListener(){
-        	public void valueChanged(ListSelectionEvent event) {
-				if(!event.getValueIsAdjusting() && vulnTable.getSelectedRow() != -1){
-			        	int r = vulnTable.getSelectedRow();
-			        	int row = vulnTable.convertRowIndexToModel(r);
-						Long vid = (Long)vulnModel.getValueAt(row, 6);
+		vulnTable.addMouseListener(new MouseAdapter() {
+		    @Override
+		    public void mouseClicked(MouseEvent e) {
+		    	 if (e.getClickCount() == 2 && !e.isConsumed()) {
+		             e.consume(); // Prevent further processing of this event
+					int row = vulnTable.rowAtPoint(e.getPoint());
+					if (row >= 0) {
+						// If table is sorted, convert view row index to model index
+						int modelRow = vulnTable.convertRowIndexToModel(row);
+						Long vid = (Long)vulnModel.getValueAt(modelRow, 6);
 						JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
 						JSONObject j = (JSONObject)json.get(0);
 						VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
 						test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 						test.setSize(900, 1000);
 						test.setVisible(true);
-		        	}
-		        	
-		        }
+
+					}
+		    	 }
+		    }
 		});
-		
 		scrollPane_1.setViewportView(vulnTable);
 		
 		JPanel ConfigPanel = new JPanel();
@@ -603,133 +607,151 @@ public class FactionGUI extends JPanel implements IExtensionStateListener, Exten
 	}
 	
 	private synchronized void  updateAPI() {
-		levelMap = factionApi.getLevelMap();	
+		levelMap = factionApi.getLevelMap();
 		/*
-		 * Get Verification Queue
+		 * Fetch all data off the EDT first (this method also runs on a Timer
+		 * thread), then apply every model mutation on the EDT below.
 		 */
-		JSONArray vjson = factionApi.executeGet(FactionAPI.VQUEUE);
-		if(vjson != null){
-			
-			for(int i = verModel.getRowCount()-1; i >=0; i--){
-				verModel.removeRow(i);
-				
-			}
-			for(int i = 0 ; i< vjson.size(); i++){
-				JSONObject obj = (JSONObject)vjson.get(i);
-				Vector vect = new Vector();
-				vect.add(convertDate((String)obj.get("Start")));
-				vect.add(obj.get("AssessmentName"));
-				vect.add(obj.get("Name"));
-				vect.add(obj.get("OverallStr"));
-				vect.add(obj.get("Id"));
-				verModel.addRow(vect);
-			}
-		}
-			
-		/*
-		 * Get Assessment Queue	
-		 */
-		JSONArray json = factionApi.executeGet(FactionAPI.QUEUE);
+		final JSONArray vjson = factionApi.executeGet(FactionAPI.VQUEUE);
+		final JSONArray json = factionApi.executeGet(FactionAPI.QUEUE);
 		if(json == null)
 			return;
-		/*
-		 * Update Assessment information.
-		 */
-		for(int i = 0 ; i< json.size(); i++){
-			JSONObject obj = (JSONObject)json.get(i);
-			Vector vect = new Vector();
-			String appId = (String) obj.get("AppId");
-			vect.add(appId);
-			vect.add(obj.get("Name"));
-			vect.add(convertDate((String)obj.get("Start")));
-			vect.add(convertDate((String)obj.get("End")));
-			boolean found = false;	
-			for(int j = 0; j< asmtModel.getRowCount(); j++){
-				String id = (String) asmtModel.getValueAt(j, 0);
-				if(id.equals(appId)){
-					found = true;
-					break;
-				}
-			}
-			if(!found){
-				asmtModel.addRow(vect);
-			}
-			String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
-			String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
-			Notes.put(appId, creds + "<!--Split-->" + notes);
-		}
-		/*
-		 * Check if we need to remove any assessments
-		 */
-		for(int j =asmtModel.getRowCount()-1; j>=0; j--){
-			boolean found = false;
-			String appId = ""+asmtModel.getValueAt(j, 0);
-			for(int i = 0; i<json.size(); i++){
-				JSONObject obj = (JSONObject) json.get(i);
-				String jsonId = ""+obj.get("AppId");
-				if(appId.equals(jsonId)){
-					found = true;
-					break;
-				}
-			}
-			if(!found){
-				asmtModel.removeRow(j);
-			}
-		}
-
-		/*
-		 * Add Only new findings to the table if an application is selected.
-		 */
-		if(!appId.equals("")){
-			JSONArray vulns = new JSONArray();
+		final String selectedAppId = appId;
+		JSONArray vulnsTmp = new JSONArray();
+		if(!selectedAppId.equals("")){
 			try {
-				vulns = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
+				vulnsTmp = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(selectedAppId,"UTF-8"));
 			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-        	for(int i = 0; i<vulns.size(); i++){
-        		JSONObject obj = (JSONObject) vulns.get(i);
-        		Vector v = new Vector();
-        		v.add(obj.get("Name"));
-        		v.add(obj.get("OverallStr"));
-        		v.add(obj.get("ImpactStr"));
-        		v.add(obj.get("LikelyhoodStr"));
-        		v.add(convertDate((String)obj.get("Opened")));
-        		v.add(convertDate((String)obj.get("Closed")));
-        		v.add(obj.get("Id"));
-        		boolean found=false;
-        		
-        		for(int j =0; j<vulnModel.getRowCount(); j++){
-        			if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
-        				found = true;
-        				break;
-        			}
-        		}
-        		
-        		if(!found){
-        			vulnModel.insertRow(0, v);
-        		}
-        	}
-        	//remove vulns no longer in table
-        	for(int j =vulnModel.getRowCount()-1; j>=0; j--){
-        		boolean found = false;
-        		for(int i = 0; i<vulns.size(); i++){
-            		JSONObject obj = (JSONObject) vulns.get(i);
-            		
-            		if((""+vulnModel.getValueAt(j, 6)).equals(""+obj.get("Id"))){
-            			
-            			found = true;
-        				break;
-            		}
-        		}
-    			if(!found){
-    				vulnModel.removeRow(j);
-    				
-    			}
-    		}
 		}
-		
+		final JSONArray vulns = vulnsTmp;
+
+		Runnable applyUpdates = new Runnable(){
+			public void run() {
+				/*
+				 * Get Verification Queue
+				 */
+				if(vjson != null){
+					for(int i = verModel.getRowCount()-1; i >=0; i--){
+						verModel.removeRow(i);
+					}
+					for(int i = 0 ; i< vjson.size(); i++){
+						JSONObject obj = (JSONObject)vjson.get(i);
+						Vector vect = new Vector();
+						vect.add(convertDate((String)obj.get("Start")));
+						vect.add(obj.get("AssessmentName"));
+						vect.add(obj.get("Name"));
+						vect.add(obj.get("OverallStr"));
+						vect.add(obj.get("Id"));
+						verModel.addRow(vect);
+					}
+				}
+
+				/*
+				 * Update Assessment information (add new assessments)
+				 */
+				for(int i = 0 ; i< json.size(); i++){
+					JSONObject obj = (JSONObject)json.get(i);
+					Vector vect = new Vector();
+					String aId = (String) obj.get("AppId");
+					vect.add(aId);
+					vect.add(obj.get("Name"));
+					vect.add(convertDate((String)obj.get("Start")));
+					vect.add(convertDate((String)obj.get("End")));
+					boolean found = false;
+					for(int j = 0; j< asmtModel.getRowCount(); j++){
+						String id = (String) asmtModel.getValueAt(j, 0);
+						if(id.equals(aId)){
+							found = true;
+							break;
+						}
+					}
+					if(!found){
+						asmtModel.addRow(vect);
+					}
+					String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
+					String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
+					Notes.put(aId, creds + "<!--Split-->" + notes);
+				}
+				/*
+				 * Check if we need to remove any assessments
+				 */
+				for(int j =asmtModel.getRowCount()-1; j>=0; j--){
+					boolean found = false;
+					String aId = ""+asmtModel.getValueAt(j, 0);
+					for(int i = 0; i<json.size(); i++){
+						JSONObject obj = (JSONObject) json.get(i);
+						String jsonId = ""+obj.get("AppId");
+						if(aId.equals(jsonId)){
+							found = true;
+							break;
+						}
+					}
+					if(!found){
+						asmtModel.removeRow(j);
+					}
+				}
+
+				/*
+				 * Add/refresh findings for the selected assessment.
+				 */
+				if(!selectedAppId.equals("")){
+					for(int i = 0; i<vulns.size(); i++){
+						JSONObject obj = (JSONObject) vulns.get(i);
+						Vector v = new Vector();
+						v.add(obj.get("Name"));
+						v.add(obj.get("OverallStr"));
+						v.add(obj.get("ImpactStr"));
+						v.add(obj.get("LikelyhoodStr"));
+						v.add(convertDate((String)obj.get("Opened")));
+						v.add(convertDate((String)obj.get("Closed")));
+						v.add(obj.get("Id"));
+						int existingRow = -1;
+						for(int j =0; j<vulnModel.getRowCount(); j++){
+							if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
+								existingRow = j;
+								break;
+							}
+						}
+						if(existingRow == -1){
+							vulnModel.insertRow(0, v);
+						}else{
+							// Row already exists: update any changed fields in place so that
+							// severity/impact/likelihood/status refreshes are reflected (and
+							// re-rendered/re-colored) instead of being skipped.
+							for(int c = 0; c < v.size(); c++){
+								Object newVal = v.get(c);
+								Object curVal = vulnModel.getValueAt(existingRow, c);
+								if(!(""+curVal).equals(""+newVal)){
+									vulnModel.setValueAt(newVal, existingRow, c);
+								}
+							}
+						}
+					}
+					//remove vulns no longer in table
+					for(int j =vulnModel.getRowCount()-1; j>=0; j--){
+						boolean found = false;
+						for(int i = 0; i<vulns.size(); i++){
+							JSONObject obj = (JSONObject) vulns.get(i);
+							if((""+vulnModel.getValueAt(j, 6)).equals(""+obj.get("Id"))){
+								found = true;
+								break;
+							}
+						}
+						if(!found){
+							vulnModel.removeRow(j);
+						}
+					}
+				}
+			}
+		};
+
+		if(SwingUtilities.isEventDispatchThread()){
+			applyUpdates.run();
+		} else {
+			SwingUtilities.invokeLater(applyUpdates);
+		}
 	}
 	
 	

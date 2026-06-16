@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,12 @@ public class FactionAPI {
 	private String TOKEN = "";
 	private Integer refresh;
 	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap();
+	// Session caches for values that are effectively static per server. These are
+	// fetched on demand the first time and reused for the life of the extension,
+	// which is what makes the add-vulnerability window open quickly after the
+	// first time. Call clearCaches() if the data ever needs to be re-fetched.
+	private JSONArray reportSectionsCache;
+	private final HashMap<String, JSONObject> customFieldsCache = new HashMap<String, JSONObject>();
 	private int highSev = 4;
 	private int medSev = 3;
 	private int lowSev = 2;
@@ -46,6 +53,9 @@ public class FactionAPI {
 	public static final String VQUEUE = "/verifications/queue";
 	public static final String GETVULN = "/assessments/vuln/";
 	public static final String GETVULNS = "/assessments/vulns/";
+	public static final String CUSTOMFIELDS = "/assessments/customfields/";
+	public static final String IMAGE = "/assessments/image/";
+	public static final String REPORTSECTIONS = "/assessments/report-sections";
 	public static final String SETNOTE = "/assessments/notes/";
 	public static final String HISTORY = "/assessments/history/";
 	public static final String LEVELS = "/vulnerabilities/getrisklevels/";
@@ -181,6 +191,10 @@ public class FactionAPI {
 	}
 
 	public LinkedHashMap<String, Integer> getLevelMap() {
+		// Risk levels are static per server; reuse the cached map once populated.
+		if (!levelMap.isEmpty()) {
+			return levelMap;
+		}
 		JSONArray array = this.executeGet(LEVELS);
 
 
@@ -194,7 +208,65 @@ public class FactionAPI {
 
 	}
 
+	/**
+	 * Returns the report sections for this server, fetching them only once.
+	 * Report sections rarely change, so caching avoids a request on every
+	 * add-vulnerability window open.
+	 */
+	public JSONArray getReportSections() {
+		if (reportSectionsCache == null) {
+			reportSectionsCache = this.executeGet(REPORTSECTIONS);
+		}
+		return reportSectionsCache;
+	}
+
+	/**
+	 * Returns the custom-field definitions for an assessment, cached per
+	 * assessment id so switching back to an assessment doesn't re-fetch.
+	 */
+	public JSONObject getCustomFields(String aid) {
+		JSONObject cached = customFieldsCache.get(aid);
+		if (cached == null) {
+			cached = this.executeGetObject(CUSTOMFIELDS + aid);
+			customFieldsCache.put(aid, cached);
+		}
+		return cached;
+	}
+
+	/** Drops all session caches so the next access re-fetches from the server. */
+	public void clearCaches() {
+		levelMap.clear();
+		reportSectionsCache = null;
+		customFieldsCache.clear();
+	}
+
+	/**
+	 * Logs a failed Faction API call with enough context to debug it: the full URL
+	 * that was attempted, the HTTP status (or "no response"), the response body if
+	 * any, the underlying error if one was thrown, and the raw request that was
+	 * sent. Output goes to Burp's extension Errors tab.
+	 */
+	private void logRequestFailure(String method, String targetURL, HttpRequest request, HttpRequestResponse response, Throwable error) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Faction API request failed");
+		sb.append("\n  URL: ").append(method).append(" ").append(this.SERVER == null ? "" : this.SERVER).append(targetURL);
+		if (response != null && response.hasResponse()) {
+			sb.append("\n  Status: ").append(response.response().statusCode());
+			sb.append("\n  Response: ").append(response.response().bodyToString());
+		} else {
+			sb.append("\n  Status: no response from server");
+		}
+		if (error != null) {
+			sb.append("\n  Error: ").append(error.toString());
+		}
+		if (request != null) {
+			sb.append("\n  Request:\n").append(request.toString());
+		}
+		logging.logToError(sb.toString());
+	}
+
 	public JSONArray executePost(String targetURL, String postData) {
+		HttpRequest attemptedRequest = null;
 		try {
 			this.getProps();
 			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
@@ -224,7 +296,8 @@ public class FactionAPI {
 					.withAddedHeader("Accept", "application/json")
 					.withAddedHeader("Content-Type", "application/x-www-form-urlencoded")
 					.withBody(postData);
-			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{ 	
+			attemptedRequest = request;
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
 				HttpRequestResponse response = http.sendRequest(request);
 				return response;
 			});
@@ -240,21 +313,22 @@ public class FactionAPI {
 					return json;
 				} catch (ParseException e1) {
 					e1.printStackTrace();
-					logging.logToError(e1.getMessage());
+					logRequestFailure("POST", targetURL, request, response, e1);
 					return new JSONArray();
 				}
 			}else{
-				logging.logToError("No Response From Faction");
+				logRequestFailure("POST", targetURL, request, response, null);
 				return new JSONArray();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			logging.logToError(e.getMessage());
+			logRequestFailure("POST", targetURL, attemptedRequest, null, e);
 			return new JSONArray();
 		}
 	}
 
 	public JSONArray executeGet(String targetURL) {
+		HttpRequest attemptedRequest = null;
 		try {
 			this.getProps();
 			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
@@ -281,8 +355,9 @@ public class FactionAPI {
 					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
 					.withAddedHeader("Content-Language", "en-US")
 					.withAddedHeader("Accept", "application/json");
+			attemptedRequest = request;
 
-			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{ 	
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
 				HttpRequestResponse response = http.sendRequest(request);
 				return response;
 			});
@@ -295,15 +370,141 @@ public class FactionAPI {
 					return json;
 				} catch (ParseException e1) {
 					e1.printStackTrace();
-					logging.logToError(e1.getMessage());
+					logRequestFailure("GET", targetURL, request, response, e1);
+					return new JSONArray();
 				}
 			}
-			logging.logToError("No Response From Faction");
+			logRequestFailure("GET", targetURL, request, response, null);
 			return new JSONArray();
 		} catch (Exception e) {
 			e.printStackTrace();
-			logging.logToError(e.getMessage());
+			logRequestFailure("GET", targetURL, attemptedRequest, null, e);
 			return new JSONArray();
+		}
+	}
+
+	/**
+	 * Same as executePost but for endpoints that return a JSON object instead of
+	 * an array (e.g. /assessments/image/{aid}).
+	 */
+	public JSONObject executePostObject(String targetURL, String postData) {
+		HttpRequest attemptedRequest = null;
+		try {
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONObject();
+			}
+			URL url = new URL(this.SERVER);
+			String targetHost = url.getHost();
+			String targetPath = url.getPath();
+			boolean isSecure = url.getProtocol().equals("https") ;
+			int port = url.getPort();
+			if(port == -1 && isSecure) {
+				port = 443;
+			}else if (port == -1) {
+				port = 80;
+			}
+
+			HttpService service = HttpService
+					.httpService(targetHost, port, isSecure);
+			HttpRequest request = HttpRequest
+					.httpRequest()
+					.withService(service)
+					.withHeader("Host", targetHost)
+					.withMethod("POST")
+					.withPath(targetPath + targetURL)
+					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
+					.withAddedHeader("Content-Language", "en-US")
+					.withAddedHeader("Accept", "application/json")
+					.withAddedHeader("Content-Type", "application/x-www-form-urlencoded")
+					.withBody(postData);
+			attemptedRequest = request;
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
+				HttpRequestResponse response = http.sendRequest(request);
+				return response;
+			});
+
+			HttpRequestResponse response = requestResponse.get();
+
+			if (response.hasResponse() && response.response().statusCode() == 200) {
+				String jsonString = response.response().bodyToString();
+				JSONParser parser = new JSONParser();
+				try {
+					JSONObject json = (JSONObject) parser.parse(jsonString);
+					return json;
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+					logRequestFailure("POST", targetURL, request, response, e1);
+					return new JSONObject();
+				}
+			}else{
+				logRequestFailure("POST", targetURL, request, response, null);
+				return new JSONObject();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			logRequestFailure("POST", targetURL, attemptedRequest, null, e);
+			return new JSONObject();
+		}
+	}
+
+	/**
+	 * Same as executeGet but for endpoints that return a JSON object instead of
+	 * an array (e.g. /assessments/customfields/{aid} and /assessments/vuln/{vid}).
+	 */
+	public JSONObject executeGetObject(String targetURL) {
+		HttpRequest attemptedRequest = null;
+		try {
+			this.getProps();
+			if(this.SERVER == null || this.SERVER.trim().equals("") || !this.SERVER.startsWith("http")) {
+				return new JSONObject();
+			}
+			URL url = new URL(this.SERVER);
+			String targetHost = url.getHost();
+			String targetPath = url.getPath();
+			boolean isSecure = url.getProtocol().equals("https") ;
+			int port = url.getPort();
+			if(port == -1 && isSecure) {
+				port = 443;
+			}else if (port == -1) {
+				port = 80;
+			}
+			HttpService service = HttpService
+					.httpService(targetHost, port, isSecure);
+			HttpRequest request = HttpRequest
+					.httpRequest()
+					.withService(service)
+					.withHeader("Host", targetHost)
+					.withMethod("GET")
+					.withPath(targetPath + targetURL.replace("+", "%20"))
+					.withAddedHeader("FACTION-API-KEY", this.TOKEN)
+					.withAddedHeader("Content-Language", "en-US")
+					.withAddedHeader("Accept", "application/json");
+			attemptedRequest = request;
+
+			CompletableFuture<HttpRequestResponse> requestResponse = CompletableFuture.supplyAsync(() ->{
+				HttpRequestResponse response = http.sendRequest(request);
+				return response;
+			});
+
+			HttpRequestResponse response = requestResponse.get();
+			if (response.hasResponse() && response.response().statusCode() == 200) {
+				JSONParser parser = new JSONParser();
+				try {
+					JSONObject json = (JSONObject) parser.parse(response.response().bodyToString());
+					return json;
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+					logRequestFailure("GET", targetURL, request, response, e1);
+					return new JSONObject();
+				}
+			}
+			logRequestFailure("GET", targetURL, request, response, null);
+			return new JSONObject();
+		} catch (Exception e) {
+			e.printStackTrace();
+			logRequestFailure("GET", targetURL, attemptedRequest, null, e);
+			return new JSONObject();
 		}
 	}
 
