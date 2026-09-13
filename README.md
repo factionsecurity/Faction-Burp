@@ -5,12 +5,18 @@ Faction allows you to:
 2. Collaborate with other pen-testers
 3. Track Vulnerabilties to Closure
 
+The extension supports both **Faction 1.x** (original API) and **Faction 2.x**
+(`/api/v1` REST API). Select the version your server runs in the extension's
+**Config** tab; see [FactionBurp/README.md](FactionBurp/README.md) for setup.
+
 ## Build from Source 
+Requires Java 17+ and Maven.
 ```
 git clone git@github.com:factionsecurity/Faction-Burp.git
 cd Faction-Burp/FactionBurp
-mvn clean compile jar:jar assembly:single
+mvn clean package
 ```
+Load `target/FactionBurp-2.0-jar-with-dependencies.jar` in Burp (Extensions → Add → Java).
 
 
 ![image](https://github.com/factionsecurity/Faction-Burp/assets/2343831/64dd2508-4d38-41e7-ac40-617392ecd2ff)

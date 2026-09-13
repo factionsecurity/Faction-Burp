@@ -1,5 +1,7 @@
 package com.faction.gui;
 
+import com.faction.api.FactionAPI;
+
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -16,7 +18,17 @@ import javax.swing.text.html.HTMLEditorKit;
 
 public class Base64HtmlEditor extends HTMLEditorKit {
 
-	    private static HTMLFactory factory = null;
+	    private final FactionAPI factionApi;
+	    private HTMLFactory factory = null;
+
+	    /** @param factionApi used to fetch portal-hosted images; null shows only data-URI images */
+	    public Base64HtmlEditor(FactionAPI factionApi) {
+	        this.factionApi = factionApi;
+	    }
+
+	    public Base64HtmlEditor() {
+	        this(null);
+	    }
 
 	    @Override
 	    public ViewFactory getViewFactory() {
@@ -32,7 +44,7 @@ public class Base64HtmlEditor extends HTMLEditorKit {
 	                        HTML.Tag kind = (HTML.Tag) o;
 	                        if (kind == HTML.Tag.IMG) {
 	                            // HERE is the call to the special class...
-	                            return new Base64ImageView(elem);
+	                            return new Base64ImageView(elem, factionApi);
 	                        }
 	                    }
 	                    return super.create(elem);
