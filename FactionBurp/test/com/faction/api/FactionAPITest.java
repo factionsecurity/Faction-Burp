@@ -17,12 +17,13 @@ class FactionAPITest {
 	@TempDir
 	Path dir;
 
-	/** A client that only knows which version it was built for. */
+	/** A client that only knows which version it was built for, and reads its token from the config it was given. */
 	private static final class StubClient implements FactionClient {
 		final int version;
-		StubClient(int version) { this.version = version; }
+		final FactionConfig config;
+		StubClient(int version, FactionConfig config) { this.version = version; this.config = config; }
 		@Override public boolean isConfigured() { return true; }
-		@Override public String testConnection() { return null; }
+		@Override public String testConnection() { return config.getToken(); }
 		@Override public String[] getSeverityStrings() { return new String[] { "v" + version }; }
 		@Override public String getSevMapping(String b) { return "v" + version; }
 		@Override public JSONArray getAssessments() { return new JSONArray(); }
@@ -84,6 +85,15 @@ class FactionAPITest {
 		api.updateProps(2, "http://h:9000", "tok", "15");
 		assertEquals("v2", api.getSevMapping("high"));
 		assertSame(before.getClass(), api.client().getClass());
+	}
+
+	@Test
+	void clientsReadTheConfigTheFacadeSavesTo() {
+		FactionAPI api = api(cfg());
+		api.updateProps(2, "http://h", "new-key", "20");
+		assertEquals("new-key", api.testConnection(), "client must see the saved token without a restart");
+		api.updateProps(1, "http://h", "v1-key", "20");
+		assertEquals("v1-key", api.testConnection());
 	}
 
 	@Test

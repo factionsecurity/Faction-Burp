@@ -1,7 +1,7 @@
 package com.faction.api;
 
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -26,29 +26,30 @@ public class FactionAPI implements FactionClient {
 	public static final int VERSION_2 = 2;
 
 	private final FactionConfig config;
-	private final Function<Integer, FactionClient> factory;
+	// (version, config) -> client. The facade passes its OWN config so clients see every save.
+	private final BiFunction<Integer, FactionConfig, FactionClient> factory;
 	private FactionClient client;
 	private int clientVersion;
 
 	public FactionAPI(MontoyaApi api) {
-		this(FactionConfig.defaultLocation(), clientFactory(new Transport(api), FactionConfig.defaultLocation()));
+		this(FactionConfig.defaultLocation(), clientFactory(new Transport(api)));
 	}
 
-	/** Test constructor: {@code factory} builds a client for a version number. */
-	FactionAPI(FactionConfig config, Function<Integer, FactionClient> factory) {
+	/** Test constructor: {@code factory} builds a client for a version number and the config to read. */
+	FactionAPI(FactionConfig config, BiFunction<Integer, FactionConfig, FactionClient> factory) {
 		this.config = config;
 		this.factory = factory;
 		rebuildClient();
 	}
 
-	private static Function<Integer, FactionClient> clientFactory(Transport transport, FactionConfig config) {
-		return version -> version == VERSION_1 ? new FactionV1Client(transport, config) : new FactionV2Client(transport, config);
+	private static BiFunction<Integer, FactionConfig, FactionClient> clientFactory(Transport transport) {
+		return (version, cfg) -> version == VERSION_1 ? new FactionV1Client(transport, cfg) : new FactionV2Client(transport, cfg);
 	}
 
 	private synchronized void rebuildClient() {
 		int version = config.getApiVersion();
 		if (client != null && version == clientVersion) return;
-		client = factory.apply(version);
+		client = factory.apply(version, config);
 		clientVersion = version;
 	}
 
