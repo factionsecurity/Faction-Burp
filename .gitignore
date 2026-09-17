@@ -7,3 +7,6 @@ FactionBurp/.classpath
 
 # Local planning docs
 docs/superpowers/
+
+# Eclipse metadata
+.settings/
