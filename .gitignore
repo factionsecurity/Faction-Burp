@@ -10,3 +10,9 @@ docs/superpowers/
 
 # Eclipse metadata
 .settings/
+
+# macOS
+**/.DS_Store
+
+# Eclipse project file
+.project
