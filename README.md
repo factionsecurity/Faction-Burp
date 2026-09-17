@@ -1,13 +1,18 @@
-This Burp Suite Extension allows you to integrate BurpSuite into the [Faction](https://github.com/factionsecurity/faction) assessment collaboration framework. Faction is fully open source and free to use. 
+This Burp Suite Extension integrates Burp Suite with the Faction assessment collaboration framework. Both generations are supported by the same extension:
+
+- **[OWASP Faction](https://github.com/factionsecurity/OWASP-Faction-2)** (Faction 2.x) — the current, AI-assisted release with the `/api/v1` REST API.
+- **[Faction](https://github.com/factionsecurity/faction)** (Faction 1.x) — the original release.
+
+Faction is fully open source and free to use. 
 
 Faction allows you to:
 1. Automate Vulnerability Reports
 2. Collaborate with other pen-testers
 3. Track Vulnerabilties to Closure
 
-The extension supports both **Faction 1.x** (original API) and **Faction 2.x**
-(`/api/v1` REST API). Select the version your server runs in the extension's
-**Config** tab; see [FactionBurp/README.md](FactionBurp/README.md) for setup.
+Select the version your server runs (**Faction 1.x** or **Faction 2.x / OWASP
+Faction**) in the extension's **Config** tab; see
+[FactionBurp/README.md](FactionBurp/README.md) for setup.
 
 ## Build from Source 
 Requires Java 17+ and Maven.
