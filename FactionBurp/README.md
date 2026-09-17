@@ -41,6 +41,13 @@ mvn clean package
 Load `target/FactionBurp-2.0-jar-with-dependencies.jar` in Burp
 (Extensions → Add → Java).
 
+### Releases
+
+Publishing a GitHub release (tag `vX.Y` or `X.Y.Z`) runs the **Release**
+workflow, which builds `FactionBurp-X.Y-jar-with-dependencies.jar` with the
+version taken from the tag and attaches it to the release. The extension shows
+that version in its Burp extension name and on the Config tab.
+
 ## Setup
 
 1. In Burp, open the **Faction** tab → **Config**.

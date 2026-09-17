@@ -10,6 +10,13 @@
     <sourceDirectory>src</sourceDirectory>
     <testSourceDirectory>test</testSourceDirectory>
     <finalName>FactionBurp-${project.version}</finalName>
+    <resources>
+      <!-- Stamps ${project.version} into faction-version.properties for com.faction.utils.Version -->
+      <resource>
+        <directory>resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

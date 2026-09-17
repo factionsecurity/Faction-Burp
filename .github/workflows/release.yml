@@ -1,0 +1,52 @@
+name: Release
+
+# Builds the extension jar when a GitHub release is published and attaches it
+# to that release. The Maven version is set from the release tag (v2.1 -> 2.1)
+# before packaging, so the jar's name and the version the extension displays
+# match the release. The pom in git is not modified.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # upload the jar to the release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FactionBurp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Derive version from the release tag
+        id: version
+        run: |
+          tag='${{ github.event.release.tag_name }}'
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+)*([.-][0-9A-Za-z]+)*$ ]]; then
+            echo "Release tag '$tag' is not a version (expected e.g. v2.1 or 2.1.0)" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set the Maven version
+        run: mvn -B -q versions:set -DnewVersion='${{ steps.version.outputs.version }}' -DgenerateBackupPoms=false
+
+      - name: Build and test
+        run: mvn -B clean package
+
+      - name: Upload the jar to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jar="target/FactionBurp-${{ steps.version.outputs.version }}-jar-with-dependencies.jar"
+          test -f "$jar"
+          gh release upload '${{ github.event.release.tag_name }}' "$jar" --clobber

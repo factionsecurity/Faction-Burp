@@ -53,6 +53,7 @@ import org.json.simple.JSONObject;
 
 import com.faction.api.FactionAPI;
 import com.faction.utils.FSUtils;
+import com.faction.utils.Version;
 
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.extension.ExtensionUnloadingHandler;
@@ -350,6 +351,10 @@ public class FactionGUI extends JPanel implements ExtensionUnloadingHandler {
 		btnFaction.setBounds(560, 92, 440, 26);
 		btnFaction.addActionListener(e -> browse("https://www.factionsecurity.com"));
 		panel.add(btnFaction);
+
+		JLabel lblVersion2 = new JLabel("Extension version " + Version.get());
+		lblVersion2.setBounds(560, 126, 440, 20);
+		panel.add(lblVersion2);
 
 		return panel;
 	}
