@@ -1,0 +1,13 @@
+Uuid: f4048e6291214e99a92ca555abee0f74
+ExtensionType: 1
+Name: Faction Integration
+RepoName: faction-integration
+ScreenVersion: 1.1
+SerialVersion: 4
+MinPlatformVersion: 15
+ProOnly: True
+Author: Faction Security
+ShortDescription: Integrates Burp with the Faction assessment collaboration framework.
+EntryPoint: FactionBurp/target/FactionBurp-1.1-jar-with-dependencies.jar
+BuildCommand: cd FactionBurp && mvn clean compile jar:jar assembly:single
+SupportedProducts: Pro
