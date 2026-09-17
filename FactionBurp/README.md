@@ -1,14 +1,19 @@
 # Faction Burp Extension
 
-A Burp Suite extension (Montoya API) for sending findings to a
-[Faction](https://www.factionsecurity.com) instance. One build supports both
-generations of the Faction API; pick the one your server runs in the
-extension's **Config** tab:
+A Burp Suite extension (Montoya API) for sending findings to a Faction
+instance. One build works with both generations of Faction; pick the one your
+server runs in the extension's **Config** tab:
 
-- **Faction 1.x** — the original API (`FACTION-API-KEY` header, form-encoded
-  writes, server-defined risk levels).
-- **Faction 2.x** — the `/api/v1` REST API (bearer `sk_fac_…` key, JSON,
-  fixed severity enum).
+- **Faction 2.x** — [OWASP Faction](https://github.com/factionsecurity/OWASP-Faction-2),
+  the current release. Uses the `/api/v1` REST API (bearer `sk_fac_…` key,
+  JSON, fixed severity enum).
+- **Faction 1.x** — the original [Faction](https://github.com/factionsecurity/faction).
+  Uses the original API (`FACTION-API-KEY` header, form-encoded writes,
+  server-defined risk levels).
+
+If you are unsure which you have: OWASP Faction has an **API Keys** page under
+Settings and issues keys starting with `sk_fac_`; the original Faction shows an
+API token on the user profile.
 
 ## Features
 
@@ -51,7 +56,8 @@ that version in its Burp extension name and on the Config tab.
 ## Setup
 
 1. In Burp, open the **Faction** tab → **Config**.
-2. Choose the **Faction Version** that matches your server.
+2. Choose the **Faction Version** that matches your server: **Faction 2.x** for
+   OWASP Faction, **Faction 1.x** for the original Faction.
 3. Enter the **Server** base URL, e.g. `https://faction.example.com` or
    `http://localhost:8080`. For 2.x the extension adds `/api/v1` itself; a
    pasted trailing `/api/v1` is stripped.
