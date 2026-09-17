@@ -4,3 +4,6 @@ VTrackBurp/faction\.properties
 .DS_Store
 
 FactionBurp/.classpath
+
+# Local planning docs
+docs/superpowers/
