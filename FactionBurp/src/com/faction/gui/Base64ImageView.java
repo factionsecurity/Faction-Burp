@@ -1,4 +1,7 @@
 package com.faction.gui;
+
+import com.faction.api.FactionAPI;
+import com.faction.utils.ImageCache;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
@@ -15,7 +18,7 @@ import javax.swing.text.html.HTML;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.InlineView;
 import javax.swing.text.html.StyleSheet;
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 import javax.swing.event.*;
 
 public class Base64ImageView extends View {
@@ -171,6 +174,14 @@ public class Base64ImageView extends View {
      * @param elem the element to create a view for
 
      */
+
+    /** Fetches portal-hosted images with the bearer token; null shows only data-URI images. */
+    private FactionAPI factionApi;
+
+    public Base64ImageView(Element elem, FactionAPI factionApi) {
+        this(elem);
+        this.factionApi = factionApi;
+    }
 
     public Base64ImageView(Element elem) {
 
@@ -1225,26 +1236,42 @@ public class Base64ImageView extends View {
      * only be invoked from <code>refreshImage</code>.
 
      */
+    /**
+     * Loads the image named by the {@code src} attribute. Three forms are
+     * accepted: a {@code data:...;base64,} URI (decoded locally), a portal path
+     * such as {@code /api/v1/inline-images/{id}} (fetched through the Faction API
+     * client, which carries the bearer token an {@code <img>} tag cannot), and,
+     * for findings written by the original extension, a bare base64 string.
+     * A failure of any kind leaves the image null — the "missing image" icon —
+     * rather than breaking layout of the whole pane.
+     */
     private void loadImage() {
-        String b64 = getBASE64Image();
-        BufferedImage newImage = null;
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(DatatypeConverter.parseBase64Binary(b64))) {
-            newImage = ImageIO.read(bais);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        image = newImage;
-    }
-
-    private String getBASE64Image() {
+        image = null;
         String src = (String) getElement().getAttributes().getAttribute(HTML.Attribute.SRC);
-        if (src == null) {
-            return null;
+        if (src == null || src.isEmpty()) return;
+        try {
+            byte[] bytes = null;
+            if (src.startsWith("data:")) {
+                bytes = Base64.getMimeDecoder().decode(src.replaceFirst("^.*;base64,", ""));
+            } else if (src.startsWith("/")) {
+                // Usually already prefetched by the opener; otherwise fetch (and remember) now.
+                bytes = factionApi != null ? ImageCache.getOrFetch(src, factionApi::getBytes) : ImageCache.get(src);
+            } else if (src.startsWith("http://") || src.startsWith("https://")) {
+                image = ImageIO.read(new URL(src));
+                return;
+            } else {
+                bytes = Base64.getMimeDecoder().decode(src);
+            }
+            if (bytes != null) {
+                try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
+                    image = ImageIO.read(bais);
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Faction: could not load image " + src.substring(0, Math.min(80, src.length())) + ": " + ex);
+            image = null;
         }
-        String data = src.replaceFirst("^.*;base64,", "");
-        return data;
     }
-
     /*private void loadImage() {
 
         URL src = getImageURL();

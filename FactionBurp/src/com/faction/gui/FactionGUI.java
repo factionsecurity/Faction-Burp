@@ -1,780 +1,594 @@
 package com.faction.gui;
 
 import java.awt.Color;
+import com.faction.utils.ImageCache;
+import java.awt.Cursor;
 import java.awt.Component;
 import java.awt.Desktop;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import com.faction.utils.FindingHistory;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Vector;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-
-import java.awt.GridLayout;
-
+import javax.swing.JComponent;
 import javax.swing.JEditorPane;
-import javax.swing.JTabbedPane;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JTextField;
-
-import java.awt.GridBagLayout;
-
-import javax.swing.JTable;
-
-import java.awt.GridBagConstraints;
-
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
-
-import java.awt.Insets;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import com.faction.api.FactionAPI;
 import com.faction.utils.FSUtils;
+import com.faction.utils.Version;
 
-import burp.IBurpExtenderCallbacks;
-import burp.IExtensionStateListener;
 import burp.api.montoya.MontoyaApi;
 import burp.api.montoya.extension.ExtensionUnloadingHandler;
 import burp.api.montoya.logging.Logging;
 
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
-import java.net.URLEncoder;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
+/**
+ * The Faction suite tab. Three sub-tabs:
+ *  - Queues: active assessments and scheduled retests, polled on a timer.
+ *  - Assessment: the selected assessment's details and its findings.
+ *  - Config: server URL, API key, refresh interval, and Burp→Faction severity map.
+ */
+public class FactionGUI extends JPanel implements ExtensionUnloadingHandler {
 
-import javax.swing.Box;
-import javax.swing.SwingUtilities;
+	private final FactionAPI factionApi;
+	private final MontoyaApi montoya;
+	private final Logging logging;
 
-import java.awt.Dimension;
-import java.awt.Font;
-
-import javax.swing.border.TitledBorder;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.border.LineBorder;
-import javax.swing.JPasswordField;
-import javax.swing.JSplitPane;
-
-public class FactionGUI extends JPanel implements IExtensionStateListener, ExtensionUnloadingHandler  {
-
-	private JPanel contentPane;
+	private JComboBox<String> versionBox;
+	private JPanel configPanel;
+	private final List<JComponent> severityRows = new ArrayList<>();
 	private JTextField serverTxt;
 	private JPasswordField tokenTxt;
-	private JTable queueTable;
+	private JTextField refreshRate;
+	private JLabel testResult;
+
 	private FactionTableModel asmtModel;
 	private FactionTableModel vulnModel;
 	private FactionTableModel verModel;
+	private JTable queueTable;
+	private JTable verTable;
 	private JTable vulnTable;
 	private JTextField asmtName;
-	private JEditorPane notesTxt;
-	private JEditorPane notes2Txt;
-	private LinkedHashMap<String, String> Notes = new LinkedHashMap<>();
-	private FactionAPI factionApi;
-	private JTextField refreshRate;
+	private JEditorPane scopeTxt;
+
 	private Timer refreshTimer;
-	private String appId = "";
-	private JTable verTable;
-	private Logging logging;
-	private LinkedHashMap<String, Integer> levelMap = new LinkedHashMap<>();
+	private String selectedAssessmentId = "";
+	private String selectedAssessmentName = "";
+	/** Finalised findings from the application's other assessments; reloaded on selection only. */
+	private volatile List<FindingHistory.Row> historyRows = Collections.emptyList();
+	/** Bumped per selection so a slow history load for a previous one is discarded. */
+	private final AtomicInteger selectionSerial = new AtomicInteger();
 
+	// Column indexes for the assessment queue model
+	private static final String[] ASMT_COLS = { "AppId", "Name", "Application", "Status", "Start", "End", "Id" };
+	private static final int ASMT_ID = 6;
+	// Retest (verification) queue model
+	private static final String[] VER_COLS = { "Start", "Assessment", "Vulnerability", "Severity", "Status", "VulnId", "AssessmentId" };
+	private static final int VER_VULN_ID = 5;
+	private static final int VER_ASMT_ID = 6;
+	// Findings model
+	private static final String[] VULN_COLS = { "Name", "Severity", "Status", "Assessment", "Opened", "Closed", "vid", "aid" };
+	private static final int VULN_ID = 6;
+	private static final int VULN_AID = 7;
 
-	public void extensionUnloaded(){
-		logging.logToOutput("Stoping Timer");
-		refreshTimer.cancel();
-	}
-	/**
-	 * Create the frame.
-	 */
-	public FactionGUI(MontoyaApi api, IBurpExtenderCallbacks legacyCallback) {
-		factionApi = new FactionAPI(api);
-		logging = api.logging();
-		setBounds(100, 100, 1099, 749);
-		//contentPane = new JPanel();
-		contentPane = this;
-		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
-		//setContentPane(contentPane);
-		contentPane.setLayout(new GridLayout(1, 0, 0, 0));
-		
+	public FactionGUI(MontoyaApi api) {
+		this.montoya = api;
+		this.factionApi = new FactionAPI(api);
+		this.logging = api.logging();
+
+		setBorder(new EmptyBorder(5, 5, 5, 5));
+		setLayout(new GridLayout(1, 0, 0, 0));
+
 		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-		contentPane.add(tabbedPane);
+		add(tabbedPane);
 
-		String [] severityStrings = factionApi.getSeverityStrings();
-		String vColumnNames[] = { "Start", "Name", "Vulnerability", "Severity", "VulnId" };
-		verModel = new FactionTableModel(vColumnNames);
-		Vector vvect = new Vector();
-		vvect.add("");vvect.add("");vvect.add("");vvect.add("");
-		verModel.addRow(vvect);
-		
-		String columnNames[] = { "AppId", "AppName", "Start Date", "EndDate" };
-		asmtModel = new FactionTableModel(columnNames);
-		Vector vect = new Vector();
-		vect.add("");vect.add("");vect.add("");vect.add("");
-		asmtModel.addRow(vect);
-		
-		
-		JSplitPane combinedQueue = new JSplitPane();
-		combinedQueue.setResizeWeight(0.5);
-		tabbedPane.addTab("Queues", null, combinedQueue, null);
-		
-		JPanel panel_3 = new JPanel();
-		combinedQueue.setRightComponent(panel_3);
-		GridBagLayout gbl_panel_3 = new GridBagLayout();
-		gbl_panel_3.columnWidths = new int[]{498, 0};
-		gbl_panel_3.rowHeights = new int[]{0, 0, 0};
-		gbl_panel_3.columnWeights = new double[]{1.0, Double.MIN_VALUE};
-		gbl_panel_3.rowWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
-		panel_3.setLayout(gbl_panel_3);
-		
-		JScrollPane scrollPane_3 = new JScrollPane();
-		GridBagConstraints gbc_scrollPane_3 = new GridBagConstraints();
-		gbc_scrollPane_3.fill = GridBagConstraints.BOTH;
-		gbc_scrollPane_3.insets = new Insets(0, 0, 5, 0);
-		gbc_scrollPane_3.gridx = 0;
-		gbc_scrollPane_3.gridy = 0;
-		panel_3.add(scrollPane_3, gbc_scrollPane_3);
-		this.updateAPI();
-		verTable = new JTable();
-		verTable.setAutoCreateRowSorter(true);
-		verTable.setModel(verModel);
-		verTable.getRowSorter().toggleSortOrder(0);
-		verTable.setDefaultRenderer(Object.class, new CustomCellRenderer(this.levelMap));
-		verTable.getSelectionModel().addListSelectionListener(
-			new ListSelectionListener(){
-        	public void valueChanged(ListSelectionEvent event) {
-				if(!event.getValueIsAdjusting() && verTable.getSelectedRow() != -1){
-			        	int r = verTable.getSelectedRow();
-			        	int row = verTable.convertRowIndexToModel(r);
-			        	
-			        	Long vid = (Long)verModel.getValueAt(row, 4);
-			        	JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
-			        	JSONObject j = (JSONObject)json.get(0);
-			        	VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), (String)j.get("Description"),(String)j.get("Recommendation"), (String)j.get("Details"), legacyCallback);
-			        	test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-			        	test.setSize(900, 1000);
-			        	test.setVisible(true);
-		        	}
-		    }
-		});
-		
-		
-		scrollPane_3.setViewportView(verTable);
-		
-		JPanel panel_4 = new JPanel();
-		GridBagConstraints gbc_panel_4 = new GridBagConstraints();
-		gbc_panel_4.anchor = GridBagConstraints.WEST;
-		gbc_panel_4.fill = GridBagConstraints.VERTICAL;
-		gbc_panel_4.gridx = 0;
-		gbc_panel_4.gridy = 1;
-		panel_3.add(panel_4, gbc_panel_4);
-		
-		JButton updateVerBtn = new JButton("Refresh");
-		panel_4.add(updateVerBtn);
-		JLabel btnVerDesc = new JLabel("Select a retest above to view its details");
-		panel_4.add(btnVerDesc);
-		
-		JPanel panel_5 = new JPanel();
-		combinedQueue.setLeftComponent(panel_5);
-		GridBagLayout gbl_panel_5 = new GridBagLayout();
-		gbl_panel_5.columnWidths = new int[]{0, 0};
-		gbl_panel_5.rowHeights = new int[]{0, 0, 0};
-		gbl_panel_5.columnWeights = new double[]{1.0, Double.MIN_VALUE};
-		gbl_panel_5.rowWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
-		panel_5.setLayout(gbl_panel_5);
-		
-		JScrollPane scrollPane_4 = new JScrollPane();
-		GridBagConstraints gbc_scrollPane_4 = new GridBagConstraints();
-		gbc_scrollPane_4.insets = new Insets(0, 0, 5, 0);
-		gbc_scrollPane_4.fill = GridBagConstraints.BOTH;
-		gbc_scrollPane_4.gridx = 0;
-		gbc_scrollPane_4.gridy = 0;
-		panel_5.add(scrollPane_4, gbc_scrollPane_4);
-		
-		JPanel panel_6 = new JPanel();
-		GridBagConstraints gbc_panel_6 = new GridBagConstraints();
-		gbc_panel_6.anchor = GridBagConstraints.WEST;
-		gbc_panel_6.fill = GridBagConstraints.VERTICAL;
-		gbc_panel_6.gridx = 0;
-		gbc_panel_6.gridy = 1;
-		panel_5.add(panel_6, gbc_panel_6);
-		
-		JButton btnNewButton = new JButton("Refresh");
-		panel_6.add(btnNewButton);
-		btnNewButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				updateAPI();
+		tabbedPane.addTab("Queues", null, buildQueuesTab(), null);
+		tabbedPane.addTab("Assessment", null, buildAssessmentTab(), null);
+		tabbedPane.addTab("Config", null, buildConfigTab(), null);
 
-			}
-		});
-		
-		JLabel btnDesc = new JLabel("Select an assessment above to update the assessment tab");
-		panel_6.add(btnDesc);
-
-		queueTable = new JTable();
-		queueTable.setAutoCreateRowSorter(true);
-		queueTable.setModel(asmtModel);
-		queueTable.getRowSorter().toggleSortOrder(2);
-		queueTable.getSelectionModel().addListSelectionListener(
-			new ListSelectionListener(){
-        	public void valueChanged(ListSelectionEvent event) {
-				if(!event.getValueIsAdjusting() && queueTable.getSelectedRow() != -1){
-					int r = queueTable.getSelectedRow();
-					int row = queueTable.convertRowIndexToModel(r);
-					
-					for(int i = vulnModel.getRowCount()-1; i >=0; i--){
-						vulnModel.removeRow(i);
-					}
-					appId = ""+asmtModel.getValueAt(row, 0);
-					asmtName.setText("AppId: " + appId + " - " + asmtModel.getValueAt(row, 1) + " - Start: " + asmtModel.getValueAt(row, 2) + " - End: " + asmtModel.getValueAt(row, 3));
-					asmtName.setEditable(false);
-					String NotesStr = Notes.get(appId) == null ? "" : ""+Notes.get(appId);
-					String [] notes = NotesStr.split("<!--Split-->");
-					notesTxt.setText(notes[0]==null? "Nothing to Show" : notes[0]);
-					if(notes.length==2)
-						notes2Txt.setText(notes[1]==null? "Nothing to Show" : notes[1]);
-					JSONArray json = new JSONArray();
-					try {
-						json = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(appId,"UTF-8"));
-					} catch (UnsupportedEncodingException e) {
-						e.printStackTrace();
-					}
-					for(int i = 0; i<json.size(); i++){
-						JSONObject obj = (JSONObject) json.get(i);
-						Vector v = new Vector();
-						v.add(obj.get("Name"));
-						v.add(obj.get("OverallStr"));
-						v.add(obj.get("ImpactStr"));
-						v.add(obj.get("LikelyhoodStr"));
-						v.add(convertDate((String)obj.get("Opened")));
-						v.add(convertDate((String)obj.get("Closed")));
-						v.add(obj.get("Id"));
-						vulnModel.addRow(v);
-					}
-					
-					
-					}
-			}}
-		);
-		scrollPane_4.setViewportView(queueTable);
-		
-		JPanel asmtPanel = new JPanel();
-		tabbedPane.addTab("Assessment", null, asmtPanel, null);
-		asmtPanel.setLayout(new GridLayout(2, 1, 0, 0));
-		
-		JScrollPane scrollPane_2 = new JScrollPane();
-		asmtPanel.add(scrollPane_2);
-		
-		JPanel panel_1 = new JPanel();
-		scrollPane_2.setViewportView(panel_1);
-		GridBagLayout gbl_panel_1 = new GridBagLayout();
-		gbl_panel_1.columnWidths = new int[]{0, 0, 0, 0, 0};
-		gbl_panel_1.rowHeights = new int[]{0, 0, 0, 0, 0};
-		gbl_panel_1.columnWeights = new double[]{0.0, 0.0, 0.0, 1.0, Double.MIN_VALUE};
-		gbl_panel_1.rowWeights = new double[]{0.0, 0.0, 1.0, 0.0, Double.MIN_VALUE};
-		panel_1.setLayout(gbl_panel_1);
-		
-		Component rigidArea_4 = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea_4 = new GridBagConstraints();
-		gbc_rigidArea_4.insets = new Insets(0, 0, 5, 0);
-		gbc_rigidArea_4.gridx = 3;
-		gbc_rigidArea_4.gridy = 0;
-		panel_1.add(rigidArea_4, gbc_rigidArea_4);
-		
-		Component rigidArea_2 = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea_2 = new GridBagConstraints();
-		gbc_rigidArea_2.insets = new Insets(0, 0, 5, 5);
-		gbc_rigidArea_2.gridx = 0;
-		gbc_rigidArea_2.gridy = 1;
-		panel_1.add(rigidArea_2, gbc_rigidArea_2);
-		
-		JLabel lblName = new JLabel("Name:");
-		lblName.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblName = new GridBagConstraints();
-		gbc_lblName.insets = new Insets(0, 0, 5, 5);
-		gbc_lblName.gridx = 1;
-		gbc_lblName.gridy = 1;
-		panel_1.add(lblName, gbc_lblName);
-		
-		Component rigidArea = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea = new GridBagConstraints();
-		gbc_rigidArea.insets = new Insets(0, 0, 5, 5);
-		gbc_rigidArea.gridx = 2;
-		gbc_rigidArea.gridy = 1;
-		panel_1.add(rigidArea, gbc_rigidArea);
-		
-		asmtName = new JTextField();
-		asmtName.setFont(new Font("Arial", Font.BOLD, 15));
-		GridBagConstraints gbc_asmtName = new GridBagConstraints();
-		gbc_asmtName.insets = new Insets(0, 0, 5, 0);
-		gbc_asmtName.fill = GridBagConstraints.HORIZONTAL;
-		gbc_asmtName.gridx = 3;
-		gbc_asmtName.gridy = 1;
-		panel_1.add(asmtName, gbc_asmtName);
-		asmtName.setColumns(10);
-		
-		Component rigidArea_3 = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea_3 = new GridBagConstraints();
-		gbc_rigidArea_3.insets = new Insets(0, 0, 5, 5);
-		gbc_rigidArea_3.gridx = 0;
-		gbc_rigidArea_3.gridy = 2;
-		panel_1.add(rigidArea_3, gbc_rigidArea_3);
-		
-		JLabel lblNotes = new JLabel("Notes:");
-		lblNotes.setFont(new Font("Arial", Font.BOLD, 18));
-		GridBagConstraints gbc_lblNotes = new GridBagConstraints();
-		gbc_lblNotes.insets = new Insets(0, 0, 5, 5);
-		gbc_lblNotes.gridx = 1;
-		gbc_lblNotes.gridy = 2;
-		panel_1.add(lblNotes, gbc_lblNotes);
-		
-		Component rigidArea_1 = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea_1 = new GridBagConstraints();
-		gbc_rigidArea_1.insets = new Insets(0, 0, 5, 5);
-		gbc_rigidArea_1.gridx = 2;
-		gbc_rigidArea_1.gridy = 2;
-		panel_1.add(rigidArea_1, gbc_rigidArea_1);
-		
-		JPanel panel_2 = new JPanel();
-		panel_2.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)), "Assessment Scope/Assessment Notes", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
-		GridBagConstraints gbc_panel_2 = new GridBagConstraints();
-		gbc_panel_2.fill = GridBagConstraints.BOTH;
-		gbc_panel_2.insets = new Insets(0, 0, 5, 0);
-		gbc_panel_2.gridx = 3;
-		gbc_panel_2.gridy = 2;
-		panel_1.add(panel_2, gbc_panel_2);
-		GridBagLayout gbl_panel_2 = new GridBagLayout();
-		gbl_panel_2.columnWidths = new int[]{0, 0};
-		gbl_panel_2.rowHeights = new int[]{0, 0};
-		gbl_panel_2.columnWeights = new double[]{1.0, Double.MIN_VALUE};
-		gbl_panel_2.rowWeights = new double[]{1.0, Double.MIN_VALUE};
-		panel_2.setLayout(gbl_panel_2);
-		
-		JSplitPane splitPane = new JSplitPane();
-		splitPane.setResizeWeight(0.5);
-		splitPane.setOneTouchExpandable(true);
-		GridBagConstraints gbc_splitPane = new GridBagConstraints();
-		gbc_splitPane.fill = GridBagConstraints.BOTH;
-		gbc_splitPane.gridx = 0;
-		gbc_splitPane.gridy = 0;
-		panel_2.add(splitPane, gbc_splitPane);
-		
-		notesTxt = new JEditorPane();
-		splitPane.setLeftComponent(notesTxt);
-		notesTxt.setEditable(false);
-		notesTxt.setContentType("text/html");
-		
-		notes2Txt = new JEditorPane();
-		notes2Txt.setContentType("text/html");
-		splitPane.setRightComponent(notes2Txt);
-		
-		Component rigidArea_5 = Box.createRigidArea(new Dimension(20, 20));
-		GridBagConstraints gbc_rigidArea_5 = new GridBagConstraints();
-		gbc_rigidArea_5.gridx = 3;
-		gbc_rigidArea_5.gridy = 3;
-		panel_1.add(rigidArea_5, gbc_rigidArea_5);
-		
-		JScrollPane scrollPane_1 = new JScrollPane();
-		asmtPanel.add(scrollPane_1);
-		
-		vulnTable = new JTable();
-		String vcolnames[] = { "Name", "Severity", "Impact", "LikelyHood", "Opened", "Closed", "vid" };
-		
-		vulnModel = new FactionTableModel(vcolnames);
-		vulnTable.setAutoCreateRowSorter(true);
-		vulnTable.setModel(vulnModel);
-		vect = new Vector();
-		vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");vect.add("");
-		vulnModel.addRow(vect);
-		vulnTable.getRowSorter().toggleSortOrder(4);
-		vulnTable.getColumnModel().getColumn(1).setMaxWidth(100);
-		vulnTable.getColumnModel().getColumn(2).setMaxWidth(100);
-		vulnTable.getColumnModel().getColumn(3).setMaxWidth(100);
-		vulnTable.getColumnModel().getColumn(4).setMaxWidth(250);
-		vulnTable.getColumnModel().getColumn(4).setPreferredWidth(250);
-		vulnTable.getColumnModel().getColumn(5).setPreferredWidth(250);
-		vulnTable.getColumnModel().getColumn(5).setMaxWidth(250);
-		vulnTable.getColumnModel().getColumn(6).setMaxWidth(50);
-		
-		vulnTable.setDefaultRenderer(Object.class, new CustomCellRenderer(this.levelMap) );
-		vulnTable.addMouseListener(new MouseAdapter() {
-		    @Override
-		    public void mouseClicked(MouseEvent e) {
-		    	 if (e.getClickCount() == 2 && !e.isConsumed()) {
-		             e.consume(); // Prevent further processing of this event
-					int row = vulnTable.rowAtPoint(e.getPoint());
-					if (row >= 0) {
-						// If table is sorted, convert view row index to model index
-						int modelRow = vulnTable.convertRowIndexToModel(row);
-						Long vid = (Long)vulnModel.getValueAt(modelRow, 6);
-						JSONArray json = factionApi.executeGet("/assessments/vuln/" + vid);
-						JSONObject j = (JSONObject)json.get(0);
-						VulnerabilityDetailsPane test = new VulnerabilityDetailsPane(factionApi,(String)j.get("Name"), j.get("Description").toString(),j.get("Recommendation").toString(),j.get("Details").toString(), legacyCallback);
-						test.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-						test.setSize(900, 1000);
-						test.setVisible(true);
-
-					}
-		    	 }
-		    }
-		});
-		scrollPane_1.setViewportView(vulnTable);
-		
-		JPanel ConfigPanel = new JPanel();
-		tabbedPane.addTab("Config", null, ConfigPanel, null);
-		ConfigPanel.setLayout(null);
-		
-		JLabel lblServer = new JLabel("Server:");
-		lblServer.setBounds(32, 54, 60, 15);
-		ConfigPanel.add(lblServer);
-		
-		JLabel lblToken = new JLabel("Token:");
-		lblToken.setBounds(32, 97, 60, 15);
-		ConfigPanel.add(lblToken);
-		
-		serverTxt = new JTextField();
-		serverTxt.setBounds(88, 48, 336, 27);
-		ConfigPanel.add(serverTxt);
-		serverTxt.setColumns(10);
-		
-		tokenTxt = new JPasswordField();
-		tokenTxt.setBounds(88, 91, 336, 27);
-		ConfigPanel.add(tokenTxt);
-		tokenTxt.setColumns(10);
-		
-		JButton updateBtn = new JButton("Update");
-		updateBtn.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				factionApi.updateProps(serverTxt.getText(), tokenTxt.getText(), refreshRate.getText());
-				try{
-				refreshTimer.cancel();
-				}catch(Exception ex){}
-				refreshTimer = new Timer();
-				refreshTimer.scheduleAtFixedRate(new TimerTask(){
-					@Override
-					public void run() {
-						updateAPI();
-						
-					}}, 0, 1000 * factionApi.getRefresh());
-				
-
-			}
-		});
-		updateBtn.setBounds(305, 129, 117, 25);
-		ConfigPanel.add(updateBtn);
-		
-		serverTxt.setText(factionApi.getServer());
-		tokenTxt.setText(factionApi.getToken());
-		
-		
-		
-				
-				
-				JLabel lblRefresh = new JLabel("Refresh:");
-				lblRefresh.setBounds(32, 134, 46, 25);
-				ConfigPanel.add(lblRefresh);
-				
-				refreshRate = new JTextField();
-				refreshRate.setText("20");
-				refreshRate.setBounds(88, 129, 46, 25);
-				ConfigPanel.add(refreshRate);
-				refreshRate.setColumns(10);
-				refreshRate.setText("" + factionApi.getRefresh());
-				
-				JLabel lblSecs = new JLabel("Seconds");
-				lblSecs.setBounds(144, 134, 100, 20);
-				ConfigPanel.add(lblSecs);
-				
-				JLabel lblNewLabel = new JLabel("Burp to Faction Severity Mapping");
-				lblNewLabel.setFont(new Font("Lucida Grande", Font.BOLD, 18));
-				lblNewLabel.setBounds(32, 166, 392, 31);
-				ConfigPanel.add(lblNewLabel);
-				
-				JLabel lblNewLabel_1 = new JLabel("Burp HIGH");
-				lblNewLabel_1.setBounds(140, 213, 100, 16);
-				ConfigPanel.add(lblNewLabel_1);
-				
-				JLabel lblNewLabel_2 = new JLabel("Burp MEDIUM");
-				lblNewLabel_2.setBounds(140, 245, 103, 16);
-				ConfigPanel.add(lblNewLabel_2);
-				
-				JLabel lblNewLabel_3 = new JLabel("Burp LOW");
-				lblNewLabel_3.setBounds(140, 277, 102, 16);
-				ConfigPanel.add(lblNewLabel_3);
-				
-				JLabel lblNewLabel_4 = new JLabel("Burp INFORMATION");
-				lblNewLabel_4.setBounds(140, 309, 168, 16);
-				ConfigPanel.add(lblNewLabel_4);
-				JComboBox sevMapMed = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapMed,FactionAPI.BURP_SEV_MED,severityStrings, (selectedSev) ->{
-					factionApi.updateSev(FactionAPI.BURP_SEV_MED, selectedSev);
-				} );
-				sevMapMed.setBounds(32, 241, 104, 27);
-				ConfigPanel.add(sevMapMed);
-				
-				JComboBox sevMapHigh = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapHigh,FactionAPI.BURP_SEV_HIGH,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_HIGH, selectedSev) );
-				sevMapHigh.setBounds(32, 209, 104, 27);
-				ConfigPanel.add(sevMapHigh);
-				
-				JComboBox sevMapLow = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapLow,FactionAPI.BURP_SEV_LOW,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_LOW, selectedSev) );
-				sevMapLow.setBounds(32, 273, 104, 27);
-				ConfigPanel.add(sevMapLow);
-				
-				JComboBox sevMapInfo = new JComboBox();
-				FSUtils.setSeverityComboBoxDefaults(factionApi, sevMapInfo,FactionAPI.BURP_SEV_INFO,severityStrings, (selectedSev) ->
-				factionApi.updateSev(FactionAPI.BURP_SEV_INFO, selectedSev) );
-				sevMapInfo.setBounds(32, 305, 104, 27);
-				ConfigPanel.add(sevMapInfo);
-				
-				JLabel lblNewLabel_5 = new JLabel("Faction - Open Source Assessment Collaboration");
-				lblNewLabel_5.setFont(new Font("Lucida Grande", Font.BOLD, 18));
-				lblNewLabel_5.setBounds(514, 48, 512, 21);
-				ConfigPanel.add(lblNewLabel_5);
-				
-				JLabel lblNewLabel_6 = new JLabel("GitHub");
-				lblNewLabel_6.setBounds(514, 96, 61, 16);
-				ConfigPanel.add(lblNewLabel_6);
-				
-				JButton btnGithub = new JButton();
-				btnGithub.setText("https://github.com/factionsecurity/faction");
-				btnGithub.setBounds(587, 91, 439, 26);
-				btnGithub.addActionListener(new ActionListener() {
-					public void actionPerformed(ActionEvent e) {
-						try {
-							Desktop.getDesktop().browse(new java.net.URL("https://github.com/factionsecurity/faction").toURI());
-						} catch (IOException | URISyntaxException e1) {
-							e1.printStackTrace();
-						}
-
-					}
-				});
-				ConfigPanel.add(btnGithub);
-				
-				JLabel lblNewLabel_7 = new JLabel("WebSite");
-				lblNewLabel_7.setBounds(514, 132, 61, 16);
-				ConfigPanel.add(lblNewLabel_7);
-				
-				JButton btnFaction = new JButton();
-				btnFaction.setText("https://www.factionsecurity.com");
-				btnFaction.setBounds(587, 127, 439, 26);
-				ConfigPanel.add(btnFaction);
-				btnFaction.addActionListener(new ActionListener() {
-					public void actionPerformed(ActionEvent e) {
-						try {
-							Desktop.getDesktop().browse(new java.net.URL("https://www.factionsecurity.com").toURI());
-						} catch (IOException | URISyntaxException e1) {
-							e1.printStackTrace();
-						}
-
-					}
-				});
-				
-				JLabel lblNewLabel_8 = new JLabel("Server Configuration");
-				lblNewLabel_8.setFont(new Font("Lucida Grande", Font.BOLD, 18));
-				lblNewLabel_8.setBounds(32, 20, 392, 16);
-				ConfigPanel.add(lblNewLabel_8);
-		
-		
-		
-		
-		refreshTimer = new Timer();
-		refreshTimer.scheduleAtFixedRate(new TimerTask(){
-
-			@Override
-			public void run() {
-				updateAPI();
-				
-			}}, 0, 1000 * factionApi.getRefresh());
-		
-		
+		startTimer();
 	}
-	
-	private synchronized void  updateAPI() {
-		levelMap = factionApi.getLevelMap();
-		/*
-		 * Fetch all data off the EDT first (this method also runs on a Timer
-		 * thread), then apply every model mutation on the EDT below.
-		 */
-		final JSONArray vjson = factionApi.executeGet(FactionAPI.VQUEUE);
-		final JSONArray json = factionApi.executeGet(FactionAPI.QUEUE);
-		if(json == null)
-			return;
-		final String selectedAppId = appId;
-		JSONArray vulnsTmp = new JSONArray();
-		if(!selectedAppId.equals("")){
-			try {
-				vulnsTmp = factionApi.executeGet("/assessments/history/" + URLEncoder.encode(selectedAppId,"UTF-8"));
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
+
+	// ── Queues tab ──────────────────────────────────────────────────────────────
+
+	private JComponent buildQueuesTab() {
+		JSplitPane split = new JSplitPane();
+		split.setResizeWeight(0.5);
+
+		// Left: assessments
+		asmtModel = new FactionTableModel(ASMT_COLS);
+		queueTable = new JTable(asmtModel);
+		queueTable.setAutoCreateRowSorter(true);
+		queueTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+			public void valueChanged(ListSelectionEvent event) {
+				if (!event.getValueIsAdjusting() && queueTable.getSelectedRow() != -1) {
+					int row = queueTable.convertRowIndexToModel(queueTable.getSelectedRow());
+					selectAssessment("" + asmtModel.getValueAt(row, ASMT_ID),
+							"" + asmtModel.getValueAt(row, 0),
+							"" + asmtModel.getValueAt(row, 1),
+							"" + asmtModel.getValueAt(row, 2));
+				}
 			}
+		});
+		JPanel left = new JPanel(new java.awt.BorderLayout());
+		left.add(new JScrollPane(queueTable), java.awt.BorderLayout.CENTER);
+		JPanel leftBtns = new JPanel();
+		JButton refreshAsmt = new JButton("Refresh");
+		refreshAsmt.addActionListener(e -> updateAPI());
+		leftBtns.add(refreshAsmt);
+		leftBtns.add(new JLabel("Select an assessment to load the Assessment tab"));
+		left.add(leftBtns, java.awt.BorderLayout.SOUTH);
+		split.setLeftComponent(left);
+
+		// Right: retests
+		verModel = new FactionTableModel(VER_COLS);
+		verTable = new JTable(verModel);
+		verTable.setAutoCreateRowSorter(true);
+		verTable.setDefaultRenderer(Object.class, new CustomCellRenderer());
+		verTable.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getClickCount() == 2 && !e.isConsumed()) {
+					e.consume();
+					int r = verTable.rowAtPoint(e.getPoint());
+					if (r >= 0) {
+						int row = verTable.convertRowIndexToModel(r);
+						openVulnerability("" + verModel.getValueAt(row, VER_ASMT_ID),
+								"" + verModel.getValueAt(row, VER_VULN_ID));
+					}
+				}
+			}
+		});
+		JPanel right = new JPanel(new java.awt.BorderLayout());
+		right.add(new JScrollPane(verTable), java.awt.BorderLayout.CENTER);
+		JPanel rightBtns = new JPanel();
+		JButton refreshVer = new JButton("Refresh");
+		refreshVer.addActionListener(e -> updateAPI());
+		rightBtns.add(refreshVer);
+		rightBtns.add(new JLabel("Double-click a retest to view its vulnerability"));
+		right.add(rightBtns, java.awt.BorderLayout.SOUTH);
+		split.setRightComponent(right);
+
+		return split;
+	}
+
+	// ── Assessment tab ──────────────────────────────────────────────────────────
+
+	private JComponent buildAssessmentTab() {
+		JPanel asmtPanel = new JPanel(new GridLayout(2, 1, 0, 0));
+
+		JPanel top = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(4, 6, 4, 6);
+		c.anchor = GridBagConstraints.WEST;
+
+		JLabel lblName = new JLabel("Name:");
+		lblName.setFont(new Font("Arial", Font.BOLD, 16));
+		c.gridx = 0; c.gridy = 0;
+		top.add(lblName, c);
+
+		asmtName = new JTextField();
+		asmtName.setFont(new Font("Arial", Font.BOLD, 14));
+		asmtName.setEditable(false);
+		c.gridx = 1; c.gridy = 0; c.fill = GridBagConstraints.HORIZONTAL; c.weightx = 1.0;
+		top.add(asmtName, c);
+
+		JPanel scopePanel = new JPanel(new java.awt.BorderLayout());
+		scopePanel.setBorder(new TitledBorder(new LineBorder(new Color(184, 207, 229)),
+				"Assessment Scope", TitledBorder.LEADING, TitledBorder.TOP, null, new Color(51, 51, 51)));
+		scopeTxt = new JEditorPane();
+		scopeTxt.setEditable(false);
+		scopeTxt.setEditorKitForContentType("text/html", new Base64HtmlEditor(factionApi));
+		scopeTxt.setContentType("text/html");
+		scopePanel.add(new JScrollPane(scopeTxt), java.awt.BorderLayout.CENTER);
+		c.gridx = 0; c.gridy = 1; c.gridwidth = 2; c.fill = GridBagConstraints.BOTH; c.weighty = 1.0;
+		top.add(scopePanel, c);
+
+		asmtPanel.add(top);
+
+		vulnModel = new FactionTableModel(VULN_COLS);
+		vulnTable = new JTable(vulnModel);
+		vulnTable.setAutoCreateRowSorter(true);
+		vulnTable.setDefaultRenderer(Object.class, new CustomCellRenderer());
+		vulnTable.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getClickCount() == 2 && !e.isConsumed()) {
+					e.consume();
+					int r = vulnTable.rowAtPoint(e.getPoint());
+					if (r >= 0) {
+						int modelRow = vulnTable.convertRowIndexToModel(r);
+						openVulnerability("" + vulnModel.getValueAt(modelRow, VULN_AID),
+								"" + vulnModel.getValueAt(modelRow, VULN_ID));
+					}
+				}
+			}
+		});
+		// The id columns drive double-click but are not for reading; keep them in the model only.
+		vulnTable.removeColumn(vulnTable.getColumnModel().getColumn(VULN_AID));
+		vulnTable.removeColumn(vulnTable.getColumnModel().getColumn(VULN_ID));
+		asmtPanel.add(new JScrollPane(vulnTable));
+
+		return asmtPanel;
+	}
+
+	// ── Config tab ──────────────────────────────────────────────────────────────
+
+	private JComponent buildConfigTab() {
+		JPanel panel = new JPanel(null);
+		configPanel = panel;
+
+		JLabel lblHeader = new JLabel("Server Configuration");
+		lblHeader.setFont(new Font("Lucida Grande", Font.BOLD, 18));
+		lblHeader.setBounds(32, 20, 392, 24);
+		panel.add(lblHeader);
+
+		JLabel lblVersion = new JLabel("Faction Version:");
+		lblVersion.setBounds(32, 58, 100, 20);
+		panel.add(lblVersion);
+		versionBox = new JComboBox<>(new String[] { VERSION_LABEL_1, VERSION_LABEL_2 });
+		versionBox.setSelectedIndex(factionApi.getApiVersion() == FactionAPI.VERSION_1 ? 0 : 1);
+		versionBox.setToolTipText("1.x: the original Faction API (FACTION-API-KEY header). 2.x: the /api/v1 REST API (bearer sk_fac_ key).");
+		versionBox.setBounds(140, 54, 200, 27);
+		panel.add(versionBox);
+
+		JLabel lblServer = new JLabel("Server:");
+		lblServer.setBounds(32, 97, 60, 20);
+		panel.add(lblServer);
+		serverTxt = new JTextField(factionApi.getServer());
+		serverTxt.setBounds(140, 93, 360, 27);
+		panel.add(serverTxt);
+
+		JLabel lblToken = new JLabel("API Key:");
+		lblToken.setBounds(32, 136, 70, 20);
+		panel.add(lblToken);
+		tokenTxt = new JPasswordField(factionApi.getToken());
+		tokenTxt.setBounds(140, 132, 360, 27);
+		panel.add(tokenTxt);
+
+		JLabel lblRefresh = new JLabel("Refresh:");
+		lblRefresh.setBounds(32, 175, 70, 20);
+		panel.add(lblRefresh);
+		refreshRate = new JTextField("" + factionApi.getRefresh());
+		refreshRate.setBounds(140, 171, 60, 27);
+		panel.add(refreshRate);
+		JLabel lblSecs = new JLabel("seconds");
+		lblSecs.setBounds(208, 175, 80, 20);
+		panel.add(lblSecs);
+
+		JButton updateBtn = new JButton("Save");
+		updateBtn.setBounds(140, 211, 110, 28);
+		updateBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				factionApi.updateProps(selectedVersion(), serverTxt.getText(), new String(tokenTxt.getPassword()), refreshRate.getText());
+				factionApi.clearCaches();
+				serverTxt.setText(factionApi.getServer());
+				testResult.setText("");
+				rebuildSeverityRows();
+				startTimer();
+				updateAPI();
+			}
+		});
+		panel.add(updateBtn);
+
+		JButton testBtn = new JButton("Test Connection");
+		testBtn.setBounds(260, 211, 150, 28);
+		testBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				factionApi.updateProps(selectedVersion(), serverTxt.getText(), new String(tokenTxt.getPassword()), refreshRate.getText());
+				factionApi.clearCaches();
+				String err = factionApi.testConnection();
+				if (err == null) {
+					testResult.setForeground(new Color(0x00A65A));
+					testResult.setText("Connected ✓");
+				} else {
+					testResult.setForeground(new Color(0xDD4B39));
+					testResult.setText(err);
+				}
+			}
+		});
+		panel.add(testBtn);
+
+		testResult = new JLabel("");
+		testResult.setBounds(420, 211, 600, 28);
+		panel.add(testResult);
+
+		JLabel lblMap = new JLabel("Burp → Faction Severity Mapping");
+		lblMap.setFont(new Font("Lucida Grande", Font.BOLD, 16));
+		lblMap.setBounds(32, 263, 420, 26);
+		panel.add(lblMap);
+
+		rebuildSeverityRows();
+
+		JLabel lblProject = new JLabel("Faction — Open Source Assessment Collaboration");
+		lblProject.setFont(new Font("Lucida Grande", Font.BOLD, 16));
+		lblProject.setBounds(560, 20, 520, 24);
+		panel.add(lblProject);
+
+		JButton btnGithub = new JButton("https://github.com/factionsecurity/faction");
+		btnGithub.setBounds(560, 58, 440, 26);
+		btnGithub.addActionListener(e -> browse("https://github.com/factionsecurity/faction"));
+		panel.add(btnGithub);
+
+		JButton btnFaction = new JButton("https://www.factionsecurity.com");
+		btnFaction.setBounds(560, 92, 440, 26);
+		btnFaction.addActionListener(e -> browse("https://www.factionsecurity.com"));
+		panel.add(btnFaction);
+
+		JLabel lblVersion2 = new JLabel("Extension version " + Version.get());
+		lblVersion2.setBounds(560, 126, 440, 20);
+		panel.add(lblVersion2);
+
+		return panel;
+	}
+
+	private static final String VERSION_LABEL_1 = "Faction 1.x";
+	private static final String VERSION_LABEL_2 = "Faction 2.x";
+
+	private int selectedVersion() {
+		return versionBox != null && versionBox.getSelectedIndex() == 0 ? FactionAPI.VERSION_1 : FactionAPI.VERSION_2;
+	}
+
+	/**
+	 * (Re)creates the four Burp→Faction severity rows. The option list depends on
+	 * the API generation — 2.x has a fixed enum, 1.x asks the server for its risk
+	 * levels — so this runs on first build and again after every Save.
+	 */
+	private void rebuildSeverityRows() {
+		for (JComponent c : severityRows) configPanel.remove(c);
+		severityRows.clear();
+		String[] sev = factionApi.getSeverityStrings();
+		addSeverityRow(configPanel, "Burp HIGH", FactionAPI.BURP_SEV_HIGH, sev, 301);
+		addSeverityRow(configPanel, "Burp MEDIUM", FactionAPI.BURP_SEV_MED, sev, 335);
+		addSeverityRow(configPanel, "Burp LOW", FactionAPI.BURP_SEV_LOW, sev, 369);
+		addSeverityRow(configPanel, "Burp INFORMATION", FactionAPI.BURP_SEV_INFO, sev, 403);
+		configPanel.revalidate();
+		configPanel.repaint();
+	}
+
+	private void addSeverityRow(JPanel panel, String label, String burpKey, String[] sev, int y) {
+		JLabel lbl = new JLabel(label);
+		lbl.setBounds(200, y + 4, 180, 20);
+		panel.add(lbl);
+		JComboBox<String> combo = new JComboBox<>();
+		FSUtils.setSeverityComboBoxDefaults(factionApi, combo, burpKey, sev,
+				(selected) -> factionApi.updateSev(burpKey, selected));
+		combo.setBounds(32, y, 150, 27);
+		panel.add(combo);
+		severityRows.add(lbl);
+		severityRows.add(combo);
+	}
+
+	private void browse(String url) {
+		try {
+			Desktop.getDesktop().browse(new java.net.URL(url).toURI());
+		} catch (IOException | URISyntaxException ex) {
+			logging.logToError("Faction: could not open browser: " + ex);
 		}
-		final JSONArray vulns = vulnsTmp;
+	}
 
-		Runnable applyUpdates = new Runnable(){
-			public void run() {
-				/*
-				 * Get Verification Queue
-				 */
-				if(vjson != null){
-					for(int i = verModel.getRowCount()-1; i >=0; i--){
-						verModel.removeRow(i);
-					}
-					for(int i = 0 ; i< vjson.size(); i++){
-						JSONObject obj = (JSONObject)vjson.get(i);
-						Vector vect = new Vector();
-						vect.add(convertDate((String)obj.get("Start")));
-						vect.add(obj.get("AssessmentName"));
-						vect.add(obj.get("Name"));
-						vect.add(obj.get("OverallStr"));
-						vect.add(obj.get("Id"));
-						verModel.addRow(vect);
-					}
-				}
+	// ── Selection / detail loading ──────────────────────────────────────────────
 
-				/*
-				 * Update Assessment information (add new assessments)
-				 */
-				for(int i = 0 ; i< json.size(); i++){
-					JSONObject obj = (JSONObject)json.get(i);
-					Vector vect = new Vector();
-					String aId = (String) obj.get("AppId");
-					vect.add(aId);
-					vect.add(obj.get("Name"));
-					vect.add(convertDate((String)obj.get("Start")));
-					vect.add(convertDate((String)obj.get("End")));
-					boolean found = false;
-					for(int j = 0; j< asmtModel.getRowCount(); j++){
-						String id = (String) asmtModel.getValueAt(j, 0);
-						if(id.equals(aId)){
-							found = true;
-							break;
-						}
-					}
-					if(!found){
-						asmtModel.addRow(vect);
-					}
-					String creds = obj.get("AccessNotes") == null ? "" : (String)obj.get("AccessNotes");
-					String notes = obj.get("Notes") == null ? "" : (String)obj.get("Notes");
-					Notes.put(aId, creds + "<!--Split-->" + notes);
-				}
-				/*
-				 * Check if we need to remove any assessments
-				 */
-				for(int j =asmtModel.getRowCount()-1; j>=0; j--){
-					boolean found = false;
-					String aId = ""+asmtModel.getValueAt(j, 0);
-					for(int i = 0; i<json.size(); i++){
-						JSONObject obj = (JSONObject) json.get(i);
-						String jsonId = ""+obj.get("AppId");
-						if(aId.equals(jsonId)){
-							found = true;
-							break;
-						}
-					}
-					if(!found){
-						asmtModel.removeRow(j);
-					}
-				}
+	private void selectAssessment(String assessmentId, String appId, String name, String application) {
+		this.selectedAssessmentId = assessmentId;
+		this.selectedAssessmentName = name;
+		this.historyRows = Collections.emptyList();
+		asmtName.setText(appId + " — " + name + (application.isEmpty() ? "" : " (" + application + ")"));
+		final int serial = selectionSerial.incrementAndGet();
+		// Network off the EDT: the history is one request per sibling assessment.
+		Thread t = new Thread(() -> {
+			JSONObject asmt = factionApi.getAssessment(assessmentId);
+			final String scope = asmt == null || asmt.get("scope") == null ? "" : asmt.get("scope").toString();
+			final String applicationId = asmt == null ? "" : str(asmt.get("applicationId"));
+			onEdt(() -> {
+				if (serial != selectionSerial.get()) return;
+				scopeTxt.setText(VulnerabilityDetailsPane.contentHtml(scope));
+				scopeTxt.setCaretPosition(0);
+			});
+			loadFindings(assessmentId); // own findings first, so the table fills quickly
+			List<FindingHistory.Row> history = FindingHistory.siblingRows(loadSiblings(applicationId, assessmentId));
+			if (serial != selectionSerial.get()) return;
+			historyRows = history;
+			loadFindings(assessmentId);
+		}, "faction-assessment-load");
+		t.setDaemon(true);
+		t.start();
+	}
 
-				/*
-				 * Add/refresh findings for the selected assessment.
-				 */
-				if(!selectedAppId.equals("")){
-					for(int i = 0; i<vulns.size(); i++){
-						JSONObject obj = (JSONObject) vulns.get(i);
-						Vector v = new Vector();
-						v.add(obj.get("Name"));
-						v.add(obj.get("OverallStr"));
-						v.add(obj.get("ImpactStr"));
-						v.add(obj.get("LikelyhoodStr"));
-						v.add(convertDate((String)obj.get("Opened")));
-						v.add(convertDate((String)obj.get("Closed")));
-						v.add(obj.get("Id"));
-						int existingRow = -1;
-						for(int j =0; j<vulnModel.getRowCount(); j++){
-							if((""+vulnModel.getValueAt(j, 6)).equals(""+v.get(6))){
-								existingRow = j;
-								break;
-							}
-						}
-						if(existingRow == -1){
-							vulnModel.insertRow(0, v);
-						}else{
-							// Row already exists: update any changed fields in place so that
-							// severity/impact/likelihood/status refreshes are reflected (and
-							// re-rendered/re-colored) instead of being skipped.
-							for(int c = 0; c < v.size(); c++){
-								Object newVal = v.get(c);
-								Object curVal = vulnModel.getValueAt(existingRow, c);
-								if(!(""+curVal).equals(""+newVal)){
-									vulnModel.setValueAt(newVal, existingRow, c);
-								}
-							}
-						}
-					}
-					//remove vulns no longer in table
-					for(int j =vulnModel.getRowCount()-1; j>=0; j--){
-						boolean found = false;
-						for(int i = 0; i<vulns.size(); i++){
-							JSONObject obj = (JSONObject) vulns.get(i);
-							if((""+vulnModel.getValueAt(j, 6)).equals(""+obj.get("Id"))){
-								found = true;
-								break;
-							}
-						}
-						if(!found){
-							vulnModel.removeRow(j);
-						}
-					}
-				}
+	/** The application's other assessments with their findings. */
+	private List<FindingHistory.Sibling> loadSiblings(String applicationId, String excludeAssessmentId) {
+		List<FindingHistory.Sibling> out = new ArrayList<>();
+		for (Object o : factionApi.getAssessmentsForApplication(applicationId)) {
+			JSONObject a = (JSONObject) o;
+			String id = str(a.get("id"));
+			if (id.isEmpty() || id.equals(excludeAssessmentId)) continue;
+			out.add(new FindingHistory.Sibling(id, str(a.get("name")), factionApi.getVulnerabilities(id)));
+		}
+		return out;
+	}
+
+	/**
+	 * Fills the findings table: the assessment's own findings, then the
+	 * application's history. Fetches on the calling thread; applies on the EDT.
+	 */
+	private void loadFindings(String assessmentId) {
+		JSONArray own = factionApi.getVulnerabilities(assessmentId);
+		List<FindingHistory.Row> rows = new ArrayList<>(FindingHistory.ownRows(assessmentId, selectedAssessmentName, own));
+		rows.addAll(historyRows);
+		Runnable apply = () -> {
+			if (!assessmentId.equals(selectedAssessmentId)) return;
+			for (int i = vulnModel.getRowCount() - 1; i >= 0; i--) vulnModel.removeRow(i);
+			for (FindingHistory.Row r : rows) {
+				Vector<Object> row = new Vector<>();
+				row.add(r.name());
+				row.add(r.severity());
+				row.add(r.status());
+				row.add(r.assessmentName());
+				row.add(r.openedAt());
+				row.add(r.closedAt());
+				row.add(r.vulnId());
+				row.add(r.assessmentId());
+				vulnModel.addRow(row);
 			}
 		};
-
-		if(SwingUtilities.isEventDispatchThread()){
-			applyUpdates.run();
-		} else {
-			SwingUtilities.invokeLater(applyUpdates);
-		}
-	}
-	
-	
-	public static String convertDate(String date){
-		SimpleDateFormat sdf1 = new SimpleDateFormat("MMM dd HH:mm:ss zzz yyyy");
-		SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd");
-		try {
-			Calendar c = Calendar.getInstance();
-			c.setTimeInMillis(Long.parseLong(date));
-			return sdf2.format(c.getTime());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
-		
-		
-	}
-	public String getAppId(){
-		return this.appId;
+		onEdt(apply);
 	}
 
-	public FactionAPI getFactionApi(){
+	/**
+	 * Opens the details window. The finding and its inline images are fetched
+	 * on a background thread — images in parallel, into {@link ImageCache} — so
+	 * Burp stays responsive and the window opens after roughly one round trip
+	 * rather than one per image.
+	 */
+	private void openVulnerability(String assessmentId, String vulnId) {
+		if (vulnId == null || vulnId.isEmpty()) return; // 1.x retests carry no assessment id; the client copes
+		setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+		Thread t = new Thread(() -> {
+			try {
+				JSONObject v = factionApi.getVulnerability(assessmentId, vulnId);
+				if (v == null) {
+					onEdt(() -> JOptionPane.showMessageDialog(this, "Could not load vulnerability.", "Faction", JOptionPane.WARNING_MESSAGE));
+					return;
+				}
+				String description = str(v.get("description"));
+				String recommendation = str(v.get("recommendation"));
+				String details = str(v.get("details"));
+				ImageCache.prefetch(ImageCache.referencedPaths(description, recommendation, details), factionApi::getBytes);
+				onEdt(() -> {
+					VulnerabilityDetailsPane pane = new VulnerabilityDetailsPane(factionApi, str(v.get("name")),
+							description, recommendation, details, montoya);
+					pane.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+					pane.setSize(900, 1000);
+					pane.setVisible(true);
+				});
+			} finally {
+				onEdt(() -> setCursor(Cursor.getDefaultCursor()));
+			}
+		}, "faction-open-vulnerability");
+		t.setDaemon(true);
+		t.start();
+	}
+
+	// ── Polling ─────────────────────────────────────────────────────────────────
+
+	private void startTimer() {
+		try { if (refreshTimer != null) refreshTimer.cancel(); } catch (Exception ignored) {}
+		refreshTimer = new Timer();
+		int period = Math.max(5, factionApi.getRefresh());
+		refreshTimer.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run() { updateAPI(); }
+		}, 0, 1000L * period);
+	}
+
+	private synchronized void updateAPI() {
+		if (!factionApi.isConfigured()) return;
+		final JSONArray assessments = factionApi.getAssessments();
+		final JSONArray retests = factionApi.getRetests();
+
+		Runnable apply = () -> {
+			// Assessments
+			for (int i = asmtModel.getRowCount() - 1; i >= 0; i--) asmtModel.removeRow(i);
+			for (Object o : assessments) {
+				JSONObject a = (JSONObject) o;
+				Vector<Object> row = new Vector<>();
+				row.add(str(a.get("appId")));
+				row.add(str(a.get("name")));
+				row.add(str(a.get("applicationName")));
+				row.add(str(a.get("status")));
+				row.add(datePart(a.get("startDate")));
+				row.add(datePart(a.get("plannedEndDate")));
+				row.add(str(a.get("id")));
+				asmtModel.addRow(row);
+			}
+			// Retests
+			for (int i = verModel.getRowCount() - 1; i >= 0; i--) verModel.removeRow(i);
+			for (Object o : retests) {
+				JSONObject r = (JSONObject) o;
+				Vector<Object> row = new Vector<>();
+				row.add(datePart(r.get("scheduledStartDate")));
+				row.add(str(r.get("assessmentName")));
+				row.add(str(r.get("vulnerabilityName")));
+				row.add(str(r.get("vulnerabilitySeverity")));
+				row.add(str(r.get("status")));
+				row.add(str(r.get("vulnerabilityId")));
+				row.add(str(r.get("assessmentId")));
+				verModel.addRow(row);
+			}
+		};
+		onEdt(apply);
+		// Refresh the selected assessment's own findings; the history is reloaded on selection only.
+		if (!selectedAssessmentId.isEmpty()) loadFindings(selectedAssessmentId);
+	}
+
+	private static void onEdt(Runnable r) {
+		if (SwingUtilities.isEventDispatchThread()) r.run();
+		else SwingUtilities.invokeLater(r);
+	}
+
+	// ── Helpers ─────────────────────────────────────────────────────────────────
+
+	/** Extracts the date portion of an ISO LocalDateTime string ("2026-07-22T…" → "2026-07-22"). */
+	public static String datePart(Object iso) {
+		if (iso == null) return "";
+		String s = iso.toString();
+		int t = s.indexOf('T');
+		return t > 0 ? s.substring(0, t) : s;
+	}
+
+	private static String str(Object o) {
+		return o == null ? "" : o.toString();
+	}
+
+	/** The selected assessment id, used to preselect it in the Send-to-Faction window. */
+	public String getAppId() {
+		return this.selectedAssessmentId;
+	}
+
+	public FactionAPI getFactionApi() {
 		return this.factionApi;
+	}
+
+	@Override
+	public void extensionUnloaded() {
+		logging.logToOutput("Faction: stopping refresh timer");
+		try { if (refreshTimer != null) refreshTimer.cancel(); } catch (Exception ignored) {}
 	}
 }
