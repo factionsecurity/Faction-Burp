@@ -89,14 +89,19 @@ public class FactionV2Client implements FactionClient {
 	// ── Endpoints ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Open assessments only. {@code showCompleted=false} still returns assessments
-	 * completed inside the server's reopen window, and the set of "completed"
-	 * statuses is configurable per install. A completed assessment always carries
-	 * a {@code completedDate}, so drop those here rather than hard-coding names.
+	 * Open assessments assigned to the signed-in user. {@code assignedToMe=true}
+	 * matches the web app's "Your Assessments": assessments where the user is an
+	 * assessor, the engagement manager or the remediation manager. Without it the
+	 * server returns everything the user is allowed to read.
+	 *
+	 * {@code showCompleted=false} still returns assessments completed inside the
+	 * server's reopen window, and the set of "completed" statuses is configurable
+	 * per install. A completed assessment always carries a {@code completedDate},
+	 * so drop those here rather than hard-coding names.
 	 */
 	@Override
 	public JSONArray getAssessments() {
-		JSONArray all = getArray(ASSESSMENTS + "?showCompleted=false&size=200&sort=startDate,desc");
+		JSONArray all = getArray(ASSESSMENTS + "?assignedToMe=true&showCompleted=false&size=200&sort=startDate,desc");
 		JSONArray open = new JSONArray();
 		for (Object o : all) {
 			JSONObject a = (JSONObject) o;
